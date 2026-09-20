@@ -121,6 +121,33 @@ def test_export_measurements_csv(client):
     assert "timestamp" in resp.text.splitlines()[0]
 
 
+def test_speedtest_endpoint(client, monkeypatch):
+    from app.services.speedtest_service import SpeedtestResult
+
+    async def fake_run_speedtest(size_bytes=None):
+        return SpeedtestResult(download_mbps=87.5, bytes_downloaded=10_000_000, elapsed_seconds=0.9, server="test")
+
+    import app.api.speedtest as speedtest_module
+    monkeypatch.setattr(speedtest_module, "run_speedtest", fake_run_speedtest)
+
+    resp = client.post("/api/speedtest")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["download_mbps"] == 87.5
+    assert body["server"] == "test"
+
+
+def test_speedtest_endpoint_surfaces_failure_as_502(client, monkeypatch):
+    async def fake_run_speedtest(size_bytes=None):
+        raise RuntimeError("connection reset")
+
+    import app.api.speedtest as speedtest_module
+    monkeypatch.setattr(speedtest_module, "run_speedtest", fake_run_speedtest)
+
+    resp = client.post("/api/speedtest")
+    assert resp.status_code == 502
+
+
 def test_export_report_json(client):
     resp = client.get("/api/export/report.json")
     assert resp.status_code == 200

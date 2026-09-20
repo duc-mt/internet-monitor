@@ -4,6 +4,7 @@ import type {
   Measurement,
   Outage,
   RangeName,
+  SpeedtestResult,
   StatisticsResponse,
   StatusResponse,
   Target,
@@ -68,6 +69,9 @@ export const api = {
   getSettings: () => request<AppSettings>("/settings"),
   updateSettings: (patch: AppSettingsUpdate) =>
     request<AppSettings>("/settings", { method: "PUT", body: JSON.stringify(patch) }),
+
+  // Manual only - never called on a timer anywhere in the app.
+  runSpeedtest: () => request<SpeedtestResult>("/speedtest", { method: "POST" }),
 
   startMonitoring: () => request<{ running: boolean }>("/monitoring/start", { method: "POST" }),
   stopMonitoring: () => request<{ running: boolean }>("/monitoring/stop", { method: "POST" }),
