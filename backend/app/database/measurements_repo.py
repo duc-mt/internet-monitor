@@ -20,6 +20,7 @@ def _row_to_measurement(row: aiosqlite.Row) -> MeasurementOut:
         jitter_ms=row["jitter_ms"],
         success=bool(row["success"]),
         error=row["error"],
+        network_name=row["network_name"] if "network_name" in row.keys() else None,
     )
 
 
@@ -27,12 +28,12 @@ async def insert_measurement(conn: aiosqlite.Connection, data: MeasurementCreate
     async with write_transaction() as tx:
         cursor = await tx.execute(
             """
-            INSERT INTO measurements (target_id, timestamp, latency_ms, packet_loss, jitter_ms, success, error)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO measurements (target_id, timestamp, latency_ms, packet_loss, jitter_ms, success, error, network_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data.target_id, data.timestamp, data.latency_ms,
-                data.packet_loss, data.jitter_ms, int(data.success), data.error,
+                data.packet_loss, data.jitter_ms, int(data.success), data.error, data.network_name,
             ),
         )
     return cursor.lastrowid

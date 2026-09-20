@@ -27,7 +27,11 @@ CREATE TABLE IF NOT EXISTS measurements (
     packet_loss     REAL NOT NULL,
     jitter_ms       REAL,
     success         INTEGER NOT NULL,
-    error           TEXT
+    error           TEXT,
+    -- Best-effort Wi-Fi SSID / "Wired (iface)" label, e.g. for telling
+    -- "50ms because you're on cafe Wi-Fi" apart from "50ms on your home
+    -- LAN". NULL when it couldn't be determined. See app/monitoring/network_info.py.
+    network_name    TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_measurements_target_ts ON measurements(target_id, timestamp);

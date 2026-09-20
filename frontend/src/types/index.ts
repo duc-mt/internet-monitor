@@ -27,6 +27,7 @@ export interface Measurement {
   jitter_ms: number | null;
   success: boolean;
   error: string | null;
+  network_name?: string | null;
 }
 
 export interface Outage {
@@ -56,6 +57,7 @@ export interface StatusResponse {
   latency_ms: number | null;
   packet_loss: number | null;
   jitter_ms: number | null;
+  network_name?: string | null;
   monitoring_uptime_seconds: number;
   targets_reachable: number;
   targets_total: number;
