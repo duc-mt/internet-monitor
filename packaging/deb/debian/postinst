@@ -1,0 +1,40 @@
+#!/bin/bash
+# postinst for internet-monitor
+set -e
+
+SERVICE_USER=internet-monitor
+INSTALL_DIR=/opt/internet-monitor
+DATA_DIR=/var/lib/internet-monitor
+
+case "$1" in
+  configure)
+    if ! getent passwd "$SERVICE_USER" >/dev/null; then
+      adduser --system --group --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
+    fi
+
+    mkdir -p "$DATA_DIR"
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$DATA_DIR"
+
+    echo "Setting up Python virtual environment (this fetches packages from PyPI)..."
+    if [ ! -d "$INSTALL_DIR/venv" ]; then
+      python3 -m venv "$INSTALL_DIR/venv"
+    fi
+    "$INSTALL_DIR/venv/bin/pip" install --upgrade pip --quiet
+    "$INSTALL_DIR/venv/bin/pip" install --quiet \
+      -r "$INSTALL_DIR/backend/requirements.txt" \
+      uvicorn \
+      "$INSTALL_DIR/cli-src"
+
+    ln -sf "$INSTALL_DIR/venv/bin/internet-monitor" /usr/local/bin/internet-monitor
+
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+
+    systemctl daemon-reload || true
+    systemctl enable --now internet-monitor.service || {
+      echo "Could not start internet-monitor.service automatically." >&2
+      echo "Check 'systemctl status internet-monitor' for details." >&2
+    }
+    ;;
+esac
+
+exit 0

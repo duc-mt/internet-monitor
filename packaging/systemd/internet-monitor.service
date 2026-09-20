@@ -1,0 +1,70 @@
+[Unit]
+Description=Internet Monitor - network latency and connectivity monitoring
+Documentation=https://github.com/example/internet-monitor
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=internet-monitor
+Group=internet-monitor
+
+WorkingDirectory=/opt/internet-monitor/backend
+Environment=PYTHONUNBUFFERED=1
+Environment=INTERNET_MONITOR_DATA_DIR=/var/lib/internet-monitor
+Environment=INTERNET_MONITOR_HOST=127.0.0.1
+Environment=INTERNET_MONITOR_PORT=8765
+ExecStart=/opt/internet-monitor/venv/bin/python -m uvicorn app.main:app --host ${INTERNET_MONITOR_HOST} --port ${INTERNET_MONITOR_PORT}
+
+Restart=on-failure
+RestartSec=5
+
+# journald is the only log sink - no files, no rotation to manage ourselves.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=internet-monitor
+
+# --- Security hardening -----------------------------------------------
+# The service runs as its own unprivileged system user (created by
+# scripts/install.sh) with no shell and no login. It needs exactly one
+# extra privilege beyond a normal process: CAP_NET_RAW, to open ICMP
+# sockets for ping. Rather than relying on the system `ping` binary being
+# setuid-root or carrying its own file capability (which varies by distro
+# and would be a much bigger grant), we hand this one capability directly
+# to the service via systemd's "ambient capabilities" mechanism. It is
+# then inherited by the `ping` child process the app spawns. Everything
+# else about the process is as locked down as a network-facing daemon
+# reasonably can be.
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_RAW
+AmbientCapabilities=CAP_NET_RAW
+
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/internet-monitor
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RemoveIPC=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @debug @cpu-emulation @obsolete
+UMask=0027
+
+# The dashboard/API only ever listens on loopback (see app.config), so no
+# network namespace restriction is applied here beyond that.
+
+[Install]
+WantedBy=multi-user.target

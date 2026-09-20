@@ -1,0 +1,44 @@
+#!/bin/bash
+# AppRun - entry point for the Internet Monitor AppImage.
+#
+# This AppImage bundles the app's pure-Python dependencies but relies on
+# the *system* python3 interpreter (>=3.10) to run them, rather than
+# bundling a full standalone Python build. This keeps the image small and
+# avoids the portability pitfalls of shipping compiled CPython across
+# arbitrary glibc versions. See README.md for the trade-offs.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "${0}")")" && pwd)"
+DEPS_DIR="$HERE/usr/lib/internet-monitor-deps"
+BACKEND_DIR="$HERE/opt/internet-monitor/backend"
+
+export PYTHONPATH="$DEPS_DIR:${PYTHONPATH:-}"
+export INTERNET_MONITOR_DATA_DIR="${INTERNET_MONITOR_DATA_DIR:-$HOME/.local/share/internet-monitor}"
+export INTERNET_MONITOR_HOST="${INTERNET_MONITOR_HOST:-127.0.0.1}"
+export INTERNET_MONITOR_PORT="${INTERNET_MONITOR_PORT:-8765}"
+
+PYTHON_BIN="$(command -v python3 || true)"
+if [[ -z "$PYTHON_BIN" ]]; then
+  echo "python3 (>=3.10) is required to run this AppImage but was not found on PATH." >&2
+  exit 1
+fi
+
+# `./Internet-Monitor.AppImage --cli status` (etc.) runs the CLI instead of
+# starting the server - handy for scripting without installing anything.
+if [[ "${1:-}" == "--cli" ]]; then
+  shift
+  exec "$PYTHON_BIN" -m internet_monitor_cli.main "$@"
+fi
+
+cd "$BACKEND_DIR"
+"$PYTHON_BIN" -m uvicorn app.main:app --host "$INTERNET_MONITOR_HOST" --port "$INTERNET_MONITOR_PORT" &
+SERVER_PID=$!
+trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT INT TERM
+
+sleep 1
+if command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "http://$INTERNET_MONITOR_HOST:$INTERNET_MONITOR_PORT" >/dev/null 2>&1 &
+fi
+
+echo "Internet Monitor running at http://$INTERNET_MONITOR_HOST:$INTERNET_MONITOR_PORT (Ctrl+C to stop)"
+wait "$SERVER_PID"

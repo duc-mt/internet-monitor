@@ -1,0 +1,11 @@
+#!/bin/bash
+# prerm for internet-monitor
+set -e
+
+case "$1" in
+  remove|upgrade|deconfigure)
+    systemctl stop internet-monitor.service 2>/dev/null || true
+    ;;
+esac
+
+exit 0

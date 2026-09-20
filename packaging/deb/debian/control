@@ -1,0 +1,20 @@
+Package: internet-monitor
+Version: 1.0.0
+Section: net
+Priority: optional
+Architecture: all
+Depends: python3 (>=3.10), python3-venv, python3-pip, iputils-ping, adduser, systemd
+Recommends: libnotify-bin
+Maintainer: Internet Monitor Maintainers <maintainers@example.invalid>
+Homepage: https://github.com/example/internet-monitor
+Description: Lightweight Internet latency and connectivity monitor
+ Internet Monitor continuously measures latency, packet loss, jitter, and
+ connectivity to a configurable set of targets (your gateway, public DNS
+ resolvers, or any host you choose). History is stored locally in SQLite;
+ there is no cloud dependency.
+ .
+ Runs as an unprivileged systemd service (internet-monitor) with a local
+ web dashboard and REST API bound to 127.0.0.1, plus an `internet-monitor`
+ CLI. Installing this package fetches the pure-Python backend dependencies
+ (FastAPI, uvicorn, aiosqlite, etc.) from PyPI during configuration, so an
+ internet connection is required at install time.
