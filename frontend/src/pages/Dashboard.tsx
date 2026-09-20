@@ -6,6 +6,7 @@ import { api } from "../services/api";
 import { StatCard } from "../components/StatCard";
 import { QualityBadge } from "../components/QualityBadge";
 import { LatencyChart, type RangeMinutes } from "../components/LatencyChart";
+import { SpeedtestButton } from "../components/SpeedtestButton";
 import { TargetStatusTable } from "../components/TargetStatusTable";
 import { OutageList } from "../components/OutageList";
 import { LoadingState, ErrorState } from "../components/States";
@@ -52,6 +53,8 @@ export function Dashboard() {
           <QualityBadge quality={status.quality} />
         </div>
       </header>
+
+      <SpeedtestButton />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
