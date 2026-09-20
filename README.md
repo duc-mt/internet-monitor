@@ -468,4 +468,14 @@ why:
   `libnotify` CLI tool) rather than a Python GUI-toolkit binding, so the
   monitoring service has zero GUI dependencies and runs identically
   headless or on a desktop.
-# internet-monitor
+- **Sleep/wake detection is a single wall-clock-gap heuristic, not OS power
+  events.** A gap between two consecutive monitoring ticks larger than
+  `sleep_gap_threshold_seconds` (default 60s) is recorded as a
+  `system_sleep` event and excluded from downtime/uptime% - see
+  `app/services/sleep_service.py`. This correctly catches a full OS
+  suspend (the process is frozen, so no failed checks get written at all,
+  just a gap). It does **not** catch the rarer case where the OS keeps the
+  process running but tears down networking during sleep (some laptops'
+  lid-close/"Power Nap" behavior) - that would need macOS
+  IOKit/Linux D-Bus login1 power-event hooks, deliberately out of scope
+  for how cheap and OS-agnostic this heuristic is.
