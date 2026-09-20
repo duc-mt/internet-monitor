@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Optional
+
+import aiosqlite
+
+from app.database.connection import write_transaction
+from app.models.target import TargetCreate, TargetOut, TargetUpdate
+
+
+def _row_to_target(row: aiosqlite.Row) -> TargetOut:
+    return TargetOut(
+        id=row["id"],
+        name=row["name"],
+        host=row["host"],
+        protocol=row["protocol"],
+        port=row["port"],
+        is_gateway=bool(row["is_gateway"]),
+        enabled=bool(row["enabled"]),
+        interval_seconds=row["interval_seconds"],
+        created_at=row["created_at"],
+    )
+
+
+async def list_targets(conn: aiosqlite.Connection, *, enabled_only: bool = False) -> list[TargetOut]:
+    query = "SELECT * FROM targets"
+    if enabled_only:
+        query += " WHERE enabled = 1"
+    query += " ORDER BY is_gateway DESC, id ASC"
+    async with conn.execute(query) as cursor:
+        rows = await cursor.fetchall()
+    return [_row_to_target(r) for r in rows]
+
+
+async def get_target(conn: aiosqlite.Connection, target_id: int) -> Optional[TargetOut]:
+    async with conn.execute("SELECT * FROM targets WHERE id = ?", (target_id,)) as cursor:
+        row = await cursor.fetchone()
+    return _row_to_target(row) if row else None
+
+
+async def create_target(conn: aiosqlite.Connection, data: TargetCreate) -> TargetOut:
+    created_at = datetime.now(timezone.utc).isoformat()
+    async with write_transaction() as tx:
+        cursor = await tx.execute(
+            """
+            INSERT INTO targets (name, host, protocol, port, is_gateway, enabled, interval_seconds, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data.name, data.host, data.protocol, data.port,
+                int(data.is_gateway), int(data.enabled), data.interval_seconds, created_at,
+            ),
+        )
+        target_id = cursor.lastrowid
+    return await get_target(conn, target_id)  # type: ignore[return-value]
+
+
+async def update_target(conn: aiosqlite.Connection, target_id: int, data: TargetUpdate) -> Optional[TargetOut]:
+    existing = await get_target(conn, target_id)
+    if existing is None:
+        return None
+    fields = data.model_dump(exclude_unset=True)
+    if not fields:
+        return existing
+    set_clause = ", ".join(f"{key} = ?" for key in fields)
+    values = [
+        (int(v) if isinstance(v, bool) else v)
+        for v in fields.values()
+    ]
+    async with write_transaction() as tx:
+        await tx.execute(
+            f"UPDATE targets SET {set_clause} WHERE id = ?",
+            (*values, target_id),
+        )
+    return await get_target(conn, target_id)
+
+
+async def delete_target(conn: aiosqlite.Connection, target_id: int) -> bool:
+    async with write_transaction() as tx:
+        cursor = await tx.execute("DELETE FROM targets WHERE id = ?", (target_id,))
+    return cursor.rowcount > 0
+
+
+async def seed_default_targets(conn: aiosqlite.Connection) -> None:
+    """Populate the classic three defaults the first time the app runs."""
+    existing = await list_targets(conn)
+    if existing:
+        return
+    defaults = [
+        TargetCreate(name="Gateway", host=await _detect_gateway(), protocol="icmp",
+                     is_gateway=True, interval_seconds=5),
+        TargetCreate(name="Cloudflare DNS", host="1.1.1.1", protocol="icmp", interval_seconds=5),
+        TargetCreate(name="Google DNS", host="8.8.8.8", protocol="icmp", interval_seconds=5),
+    ]
+    for target in defaults:
+        await create_target(conn, target)
+
+
+async def _detect_gateway() -> str:
+    """Best-effort default-gateway detection; falls back to a common LAN IP."""
+    try:
+        with open("/proc/net/route") as f:
+            for line in f.readlines()[1:]:
+                fields = line.strip().split()
+                if len(fields) >= 3 and fields[1] == "00000000":
+                    hex_ip = fields[2]
+                    octets = [str(int(hex_ip[i:i + 2], 16)) for i in (6, 4, 2, 0)]
+                    return ".".join(octets)
+    except (OSError, ValueError, IndexError):
+        pass
+    return "192.168.1.1"
