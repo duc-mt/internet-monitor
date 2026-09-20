@@ -15,17 +15,18 @@ is stored on your own machine.
 ## Contents
 
 1. [Quick start](#quick-start)
-2. [Architecture](#architecture)
-3. [Building from source](#building-from-source)
-4. [Running](#running)
-5. [Installing (deb / AppImage / manual)](#installing)
-6. [Uninstalling](#uninstalling)
-7. [Configuration](#configuration)
-8. [The CLI](#the-cli)
-9. [Testing](#testing)
-10. [Packaging internals](#packaging-internals)
-11. [Troubleshooting](#troubleshooting)
-12. [Engineering decisions & known limitations](#engineering-decisions--known-limitations)
+2. [Platform support](#platform-support)
+3. [Architecture](#architecture)
+4. [Building from source](#building-from-source)
+5. [Running](#running)
+6. [Installing (deb / AppImage / manual)](#installing)
+7. [Uninstalling](#uninstalling)
+8. [Configuration](#configuration)
+9. [The CLI](#the-cli)
+10. [Testing](#testing)
+11. [Packaging internals](#packaging-internals)
+12. [Troubleshooting](#troubleshooting)
+13. [Engineering decisions & known limitations](#engineering-decisions--known-limitations)
 
 ---
 
@@ -54,6 +55,47 @@ cd backend && .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8
 ```
 
 To install permanently as a background service, see [Installing](#installing).
+
+---
+
+## Platform support
+
+**Linux is the primary, fully-supported target** — everything in this repo
+(the systemd service, the `.deb` package, the AppImage, `scripts/install.sh`)
+is built for and tested against Linux, per the original brief.
+
+**macOS** works for development/ad-hoc use (backend + frontend + CLI in dev
+mode — see [Quick start](#quick-start)), with two small platform patches
+applied so the core monitoring logic behaves correctly:
+
+- `ping -W` timeout units (Linux = seconds, macOS = milliseconds) — handled
+  automatically based on `sys.platform`.
+- Desktop notifications use `osascript` (built into macOS) instead of
+  `notify-send` (Linux-only) — also automatic.
+
+What does **not** work on macOS, and hasn't been ported:
+
+- The systemd service, `.deb` package, and AppImage — Linux-specific by
+  design (AppImage in particular is a Linux binary format and fails with
+  `exec format error` if you try to run it on a Mac).
+- `scripts/install.sh` / `uninstall.sh` — call `useradd`/`systemctl`, which
+  don't exist on macOS.
+- Gateway auto-detection reads `/proc/net/route` (Linux-only); on macOS it
+  silently falls back to a generic placeholder IP rather than your actual
+  default gateway.
+
+For ad-hoc testing on macOS (e.g. checking connectivity quality at a
+physical location you're visiting), see `test-site.sh` at the project
+root — it starts the backend with an isolated, disposable dataset per
+"site name" and saves a CSV/JSON report when you stop it, which fits
+macOS's lack of a background-service option better than trying to install
+anything permanently.
+
+A native macOS port (a `launchd` background service instead of
+`test-site.sh`, a `.pkg` installer, `route get default` for real gateway
+detection) is possible but hasn't been built — the two patches above make
+development and one-off testing work correctly, not permanent background
+operation.
 
 ---
 
