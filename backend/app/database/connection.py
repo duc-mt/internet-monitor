@@ -19,6 +19,7 @@ from typing import AsyncIterator
 import aiosqlite
 
 from app.config import DATABASE_PATH, ensure_data_dir
+from app.database.migrations import run_migrations
 
 logger = logging.getLogger("internet_monitor.database")
 
@@ -39,6 +40,7 @@ async def init_db(db_path: Path | None = None) -> aiosqlite.Connection:
     schema_sql = _SCHEMA_PATH.read_text()
     await conn.executescript(schema_sql)
     await conn.commit()
+    await run_migrations(conn)
     _connection = conn
     logger.info("Database ready at %s", path)
     return conn

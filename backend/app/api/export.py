@@ -25,9 +25,9 @@ async def export_measurements_csv(
     rows = await measurements_repo.list_measurements(db, target_id=target_id, start=start, end=end, limit=100000)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["timestamp", "target_id", "target_name", "latency_ms", "packet_loss", "jitter_ms", "success", "error"])
+    writer.writerow(["timestamp", "target_id", "target_name", "latency_ms", "packet_loss", "jitter_ms", "success", "error", "network_name"])
     for r in rows:
-        writer.writerow([r.timestamp, r.target_id, r.target_name, r.latency_ms, r.packet_loss, r.jitter_ms, r.success, r.error or ""])
+        writer.writerow([r.timestamp, r.target_id, r.target_name, r.latency_ms, r.packet_loss, r.jitter_ms, r.success, r.error or "", r.network_name or ""])
     buffer.seek(0)
     return StreamingResponse(
         iter([buffer.getvalue()]),
