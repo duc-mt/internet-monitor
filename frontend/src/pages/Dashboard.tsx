@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Wifi, Gauge, PackageX, Waves, Clock } from "lucide-react";
+import { Wifi, Gauge, PackageX, Waves, Clock, Router } from "lucide-react";
 import { useStatus } from "../hooks/useStatus";
 import { usePolling } from "../hooks/usePolling";
 import { api } from "../services/api";
@@ -42,7 +42,15 @@ export function Dashboard() {
             {status.active_outage && <span className="text-offline"> · outage in progress</span>}
           </p>
         </div>
-        <QualityBadge quality={status.quality} />
+        <div className="flex items-center gap-3">
+          {status.network_name && (
+            <span className="flex items-center gap-1.5 text-xs text-muted border border-border rounded-full px-2.5 py-1">
+              <Router size={12} />
+              {status.network_name}
+            </span>
+          )}
+          <QualityBadge quality={status.quality} />
+        </div>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

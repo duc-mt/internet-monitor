@@ -15,6 +15,7 @@ class MeasurementOut(BaseModel):
     jitter_ms: Optional[float]
     success: bool
     error: Optional[str]
+    network_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -27,3 +28,4 @@ class MeasurementCreate(BaseModel):
     jitter_ms: Optional[float]
     success: bool
     error: Optional[str] = None
+    network_name: Optional[str] = None

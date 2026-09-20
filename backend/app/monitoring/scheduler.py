@@ -12,6 +12,7 @@ from app.database import measurements_repo, targets_repo
 from app.models.measurement import MeasurementCreate
 from app.models.settings import AppSettings
 from app.models.target import TargetOut
+from app.monitoring import network_info
 from app.monitoring.pinger import PingBatchResult, run_check
 from app.services import connectivity_service, notification_service, outage_service
 from app.services.settings_service import get_settings
@@ -99,6 +100,9 @@ class MonitoringManager:
                     host=current.host, protocol=current.protocol, port=current.port,
                     count=settings.pings_per_check, timeout=settings.ping_timeout_seconds,
                 )
+                # Cached (see network_info._CACHE_TTL) - this does not spawn
+                # a fresh subprocess on every single check.
+                network_name = await network_info.get_network_name()
                 await measurements_repo.insert_measurement(conn, MeasurementCreate(
                     target_id=current.id,
                     timestamp=datetime.now(timezone.utc).isoformat(),
@@ -107,6 +111,7 @@ class MonitoringManager:
                     jitter_ms=result.jitter_ms,
                     success=result.success,
                     error=result.error,
+                    network_name=network_name,
                 ))
                 await self._check_thresholds(current, result, settings)
                 async with self._eval_lock:

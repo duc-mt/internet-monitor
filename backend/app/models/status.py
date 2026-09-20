@@ -23,6 +23,7 @@ class StatusResponse(BaseModel):
     latency_ms: Optional[float]
     packet_loss: Optional[float]
     jitter_ms: Optional[float]
+    network_name: Optional[str] = None
     monitoring_uptime_seconds: float
     targets_reachable: int
     targets_total: int

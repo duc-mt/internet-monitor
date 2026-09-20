@@ -7,6 +7,7 @@ import aiosqlite
 
 from app.database import measurements_repo, outages_repo, targets_repo
 from app.models.status import StatusResponse, TargetStatus
+from app.monitoring import network_info
 from app.services import quality_service
 from app.services.settings_service import get_settings
 
@@ -60,6 +61,7 @@ async def compute_status(
         uptime = (datetime.now(timezone.utc) - monitoring_started_at).total_seconds()
 
     active_outage = await outages_repo.get_active_outage(conn)
+    network_name = await network_info.get_network_name()
 
     return StatusResponse(
         online=online,
@@ -67,6 +69,7 @@ async def compute_status(
         latency_ms=avg_latency,
         packet_loss=avg_loss,
         jitter_ms=avg_jitter,
+        network_name=network_name,
         monitoring_uptime_seconds=uptime,
         targets_reachable=reachable_count,
         targets_total=len(targets),
