@@ -117,6 +117,13 @@ export interface AppSettings {
   language: string;
 }
 
+export interface SpeedtestResult {
+  download_mbps: number;
+  bytes_downloaded: number;
+  elapsed_seconds: number;
+  server: string;
+}
+
 export type AppSettingsUpdate = Partial<
   Omit<AppSettings, "notifications" | "classification"> & {
     notifications: Partial<NotificationPreferences>;

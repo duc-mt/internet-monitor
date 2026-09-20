@@ -9,7 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import export, health, measurements, monitoring, outages, settings, statistics, status, targets
+from app.api import (
+    export, health, measurements, monitoring, outages, settings, speedtest, statistics, status, targets,
+)
 from app.config import DEV_CORS_ORIGINS, FRONTEND_DIST_DIR
 from app.database.connection import close_db, init_db
 from app.database.targets_repo import seed_default_targets
@@ -53,6 +55,7 @@ app.add_middleware(
 for router in (
     health.router, status.router, targets.router, measurements.router,
     statistics.router, outages.router, settings.router, monitoring.router, export.router,
+    speedtest.router,
 ):
     app.include_router(router)
 
