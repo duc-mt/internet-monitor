@@ -72,3 +72,56 @@ async def test_compute_statistics_end_to_end(db):
     assert stats.median_latency_ms == 30.0
     assert stats.avg_latency_ms == 30.0
     assert stats.packet_loss_pct == pytest.approx(100 / 6, rel=0.01)
+
+
+@pytest.mark.asyncio
+async def test_uptime_pct_is_none_with_no_data(db):
+    stats = await statistics_service.compute_statistics(db, range_name="1h")
+    assert stats.uptime_pct is None
+
+
+@pytest.mark.asyncio
+async def test_uptime_pct_is_100_with_no_outages(db):
+    target = await targets_repo.create_target(db, TargetCreate(name="Test", host="1.1.1.1"))
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(seconds=500)
+    for ts in (start, now):
+        await insert_measurement(db, MeasurementCreate(
+            target_id=target.id, timestamp=ts.isoformat(), latency_ms=10.0, packet_loss=0.0, jitter_ms=1.0, success=True,
+        ))
+
+    stats = await statistics_service.compute_statistics(db, range_name="1h", target_id=target.id)
+    assert stats.uptime_pct == 100.0
+
+
+@pytest.mark.asyncio
+async def test_uptime_pct_counts_real_outage_but_not_sleep_gap(db):
+    target = await targets_repo.create_target(db, TargetCreate(name="Test", host="1.1.1.1"))
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(seconds=1000)
+    for ts in (start, now):
+        await insert_measurement(db, MeasurementCreate(
+            target_id=target.id, timestamp=ts.isoformat(), latency_ms=10.0, packet_loss=0.0, jitter_ms=1.0, success=True,
+        ))
+
+    # A real outage: 100s of genuine downtime.
+    outage_start = start + timedelta(seconds=200)
+    await db.execute(
+        "INSERT INTO outages (started_at, ended_at, duration_seconds, reason, affected_targets, failed_checks) "
+        "VALUES (?, ?, ?, 'all monitored external targets unreachable', '[]', 3)",
+        (outage_start.isoformat(), (outage_start + timedelta(seconds=100)).isoformat(), 100.0),
+    )
+    # A sleep gap: 300s that must reduce neither uptime% numerator nor be
+    # left inside the "awake" window it's measured against.
+    sleep_start = start + timedelta(seconds=500)
+    await db.execute(
+        "INSERT INTO outages (started_at, ended_at, duration_seconds, reason, affected_targets, failed_checks) "
+        "VALUES (?, ?, ?, 'system_sleep', '[]', 0)",
+        (sleep_start.isoformat(), (sleep_start + timedelta(seconds=300)).isoformat(), 300.0),
+    )
+    await db.commit()
+
+    stats = await statistics_service.compute_statistics(db, range_name="1h", target_id=target.id)
+    # effective_seconds = 1000 (raw span) - 300 (sleep) = 700
+    # uptime_pct = 100 * (1 - 100/700) ~= 85.71
+    assert stats.uptime_pct == pytest.approx(85.71, abs=0.5)

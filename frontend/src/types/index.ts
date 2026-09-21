@@ -59,6 +59,7 @@ export interface StatusResponse {
   jitter_ms: number | null;
   network_name?: string | null;
   monitoring_uptime_seconds: number;
+  uptime_pct_24h: number | null;
   targets_reachable: number;
   targets_total: number;
   targets: TargetStatus[];
@@ -78,6 +79,7 @@ export interface StatisticsResponse {
   p95_latency_ms: number | null;
   packet_loss_pct: number | null;
   avg_jitter_ms: number | null;
+  uptime_pct: number | null;
   outage_count: number;
   longest_outage_seconds: number | null;
   monitoring_duration_seconds: number;
