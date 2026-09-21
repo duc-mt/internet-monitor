@@ -20,6 +20,23 @@ describe("OutageList", () => {
     expect(screen.getByText("Cloudflare DNS, Google DNS")).toBeInTheDocument();
   });
 
+  it("labels a system_sleep row distinctly from a real outage", () => {
+    const outages: Outage[] = [
+      {
+        id: 1, started_at: new Date().toISOString(), ended_at: new Date().toISOString(),
+        duration_seconds: 28800, reason: "system_sleep", affected_targets: [], failed_checks: 0, is_active: false,
+      },
+      {
+        id: 2, started_at: new Date().toISOString(), ended_at: new Date().toISOString(),
+        duration_seconds: 60, reason: "all monitored external targets unreachable",
+        affected_targets: ["Cloudflare DNS"], failed_checks: 3, is_active: false,
+      },
+    ];
+    render(<OutageList outages={outages} />);
+    expect(screen.getByText("System sleep")).toBeInTheDocument();
+    expect(screen.getByText("Outage")).toBeInTheDocument();
+  });
+
   it("limits to 5 rows when compact", () => {
     const outages: Outage[] = Array.from({ length: 8 }, (_, i) => ({
       id: i, started_at: new Date().toISOString(), ended_at: new Date().toISOString(),

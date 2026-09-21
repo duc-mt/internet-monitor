@@ -24,9 +24,12 @@ import pytest
 import pytest_asyncio
 
 from app.database import connection as db_connection
+from app.monitoring import network_info
 from app.monitoring import scheduler as monitoring_scheduler
 from app.monitoring.pinger import PingBatchResult
-from app.services import connectivity_service, notification_service, outage_service, settings_service
+from app.services import (
+    connectivity_service, notification_service, outage_service, settings_service, sleep_service,
+)
 
 
 async def _fake_run_check(*, host, protocol, port, count, timeout):
@@ -44,6 +47,8 @@ async def db(tmp_path: Path):
     connectivity_service.reset_state()
     outage_service.reset_state()
     notification_service.reset_cooldowns()
+    sleep_service.reset_state()
+    network_info.reset_cache()
     yield conn
     await db_connection.close_db()
 
@@ -58,6 +63,8 @@ def client(tmp_path: Path, monkeypatch):
     connectivity_service.reset_state()
     outage_service.reset_state()
     notification_service.reset_cooldowns()
+    sleep_service.reset_state()
+    network_info.reset_cache()
 
     from fastapi.testclient import TestClient
     from app.main import app

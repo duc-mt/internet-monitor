@@ -46,6 +46,15 @@ class AppSettings(BaseModel):
         description="Consecutive failed checks, across all non-gateway targets, before an outage is recorded."
     )
     outage_notify_min_duration_seconds: int = 30
+    sleep_gap_threshold_seconds: int = Field(
+        default=60, ge=10, le=3600,
+        description=(
+            "If the gap between two consecutive monitoring ticks exceeds this, "
+            "the laptop almost certainly slept in between - that gap is recorded "
+            "as a 'system_sleep' event and excluded from downtime/uptime %, "
+            "rather than being misread as a real internet outage."
+        ),
+    )
 
     notifications: NotificationPreferences = Field(default_factory=NotificationPreferences)
     classification: ClassificationThresholds = Field(default_factory=ClassificationThresholds)
@@ -68,6 +77,7 @@ class AppSettingsUpdate(BaseModel):
     packet_loss_warning_threshold_pct: Optional[float] = None
     outage_threshold_checks: Optional[int] = Field(default=None, ge=1, le=60)
     outage_notify_min_duration_seconds: Optional[int] = None
+    sleep_gap_threshold_seconds: Optional[int] = Field(default=None, ge=10, le=3600)
     notifications: Optional[NotificationPreferences] = None
     classification: Optional[ClassificationThresholds] = None
     data_retention_days: Optional[int] = Field(default=None, ge=1, le=3650)
