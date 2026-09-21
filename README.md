@@ -80,9 +80,6 @@ What does **not** work on macOS, and hasn't been ported:
   `exec format error` if you try to run it on a Mac).
 - `scripts/install.sh` / `uninstall.sh` — call `useradd`/`systemctl`, which
   don't exist on macOS.
-- Gateway auto-detection reads `/proc/net/route` (Linux-only); on macOS it
-  silently falls back to a generic placeholder IP rather than your actual
-  default gateway.
 
 For ad-hoc testing on macOS (e.g. checking connectivity quality at a
 physical location you're visiting), see `test-site.sh` at the project
@@ -92,10 +89,10 @@ macOS's lack of a background-service option better than trying to install
 anything permanently.
 
 A native macOS port (a `launchd` background service instead of
-`test-site.sh`, a `.pkg` installer, `route get default` for real gateway
-detection) is possible but hasn't been built — the two patches above make
-development and one-off testing work correctly, not permanent background
-operation.
+`test-site.sh`, a `.pkg` installer) is possible but hasn't been built — the
+patches above make development and one-off testing work correctly (ping
+timing, notifications, and gateway/network detection all behave correctly
+on macOS now), not permanent background operation without a terminal open.
 
 ---
 
@@ -465,6 +462,12 @@ why:
   `apt install`. For a fully offline install, use the AppImage (which
   vendors dependencies at *build* time) or `pip download` the
   requirements yourself ahead of time.
+- **Gateway auto-detection is a genuinely different mechanism per platform,
+  not a shared code path.** Linux reads `/proc/net/route` directly (no
+  subprocess needed); macOS has no `/proc` filesystem, so it shells out to
+  `route -n get default` instead. Both fall back to `192.168.1.1` if
+  detection fails for any reason, rather than leaving the seeded Gateway
+  target with an empty/invalid host.
 - **Desktop notifications use `notify-send`** (a call to the standard
   `libnotify` CLI tool) rather than a Python GUI-toolkit binding, so the
   monitoring service has zero GUI dependencies and runs identically

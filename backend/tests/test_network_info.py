@@ -76,6 +76,25 @@ async def test_macos_unknown_when_nothing_detected(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_macos_default_gateway_parses_route_output(monkeypatch):
+    async def fake_run(*args: str) -> str:
+        if args[0] == "route":
+            return "   route to: default\ndestination: default\nmask: default\ngateway: 10.119.5.254\ninterface: en0\n"
+        return ""
+
+    monkeypatch.setattr(network_info, "_run", fake_run)
+    gateway = await network_info.get_default_gateway_macos()
+    assert gateway == "10.119.5.254"
+
+
+@pytest.mark.asyncio
+async def test_macos_default_gateway_none_when_unparseable(monkeypatch):
+    monkeypatch.setattr(network_info, "_run", _fake_run({}))
+    gateway = await network_info.get_default_gateway_macos()
+    assert gateway is None
+
+
+@pytest.mark.asyncio
 async def test_linux_uses_iwgetid_first(monkeypatch):
     monkeypatch.setattr(network_info, "_IS_MACOS", False)
 

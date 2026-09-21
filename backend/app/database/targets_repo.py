@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -7,6 +8,7 @@ import aiosqlite
 
 from app.database.connection import write_transaction
 from app.models.target import TargetCreate, TargetOut, TargetUpdate
+from app.monitoring import network_info
 
 
 def _row_to_target(row: aiosqlite.Row) -> TargetOut:
@@ -98,7 +100,23 @@ async def seed_default_targets(conn: aiosqlite.Connection) -> None:
 
 
 async def _detect_gateway() -> str:
-    """Best-effort default-gateway detection; falls back to a common LAN IP."""
+    """
+    Best-effort default-gateway detection, falling back to a common LAN IP
+    if nothing could be determined at all. Linux reads /proc/net/route
+    directly (no subprocess needed); macOS has no /proc filesystem, so it
+    shells out to `route -n get default` instead (see
+    app.monitoring.network_info.get_default_gateway_macos) - the two are
+    genuinely different mechanisms, not a shared code path.
+    """
+    if sys.platform == "darwin":
+        try:
+            gateway = await network_info.get_default_gateway_macos()
+            if gateway:
+                return gateway
+        except Exception:  # pragma: no cover - defensive: seeding must never crash on this
+            pass
+        return "192.168.1.1"
+
     try:
         with open("/proc/net/route") as f:
             for line in f.readlines()[1:]:
