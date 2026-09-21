@@ -30,6 +30,7 @@ from typing import Optional
 logger = logging.getLogger("internet_monitor.network_info")
 
 _IS_MACOS = sys.platform == "darwin"
+_IS_WINDOWS = sys.platform == "win32"
 _CACHE_TTL = 30.0  # seconds
 _SUBPROCESS_TIMEOUT = 3.0
 
@@ -46,7 +47,12 @@ async def get_network_name(force: bool = False) -> Optional[str]:
         return _cached_name
 
     try:
-        _cached_name = await (_macos_network_name() if _IS_MACOS else _linux_network_name())
+        if _IS_MACOS:
+            _cached_name = await _macos_network_name()
+        elif _IS_WINDOWS:
+            _cached_name = await _windows_network_name()
+        else:
+            _cached_name = await _linux_network_name()
     except Exception:  # pragma: no cover - defensive: never let this break a measurement
         logger.debug("Network name detection failed", exc_info=True)
         _cached_name = None
@@ -136,6 +142,45 @@ async def _macos_ssid_via_system_profiler() -> Optional[str]:
     output = await _run("system_profiler", "SPAirPortDataType", "-detailLevel", "basic", timeout=8.0)
     m = _SYSTEM_PROFILER_SSID_RE.search(output)
     return m.group(1).strip() if m else None
+
+
+# Anchored to line-start: "    SSID   : Name" matches, but "    BSSID   : ..."
+# never can, since the very next characters after leading whitespace must
+# literally be "SSID" - "BSSID" fails that immediately (starts with "B").
+_WINDOWS_SSID_RE = re.compile(r"^\s*SSID\s*:\s*(.+?)\s*$", re.MULTILINE)
+
+
+async def _windows_network_name() -> Optional[str]:
+    output = await _run("netsh", "wlan", "show", "interfaces")
+    m = _WINDOWS_SSID_RE.search(output)
+    if m:
+        return m.group(1).strip()
+    # No Wi-Fi SSID - either no Wi-Fi adapter, or connected via Ethernet
+    # instead. Windows has no single clean command correlating "the
+    # interface the default route uses" with "is that Ethernet" the way
+    # macOS's `route -n get default` + `networksetup` combination does, so
+    # this is deliberately less precise than the macOS/Linux versions: a
+    # generic "Wired" label whenever there's a working default route at
+    # all, rather than the specific adapter name.
+    gateway = await get_default_gateway_windows()
+    return "Wired" if gateway else None
+
+
+_WINDOWS_DEFAULT_ROUTE_RE = re.compile(r"^\s*0\.0\.0\.0\s+0\.0\.0\.0\s+(\d+\.\d+\.\d+\.\d+)", re.MULTILINE)
+
+
+async def get_default_gateway_windows() -> Optional[str]:
+    """
+    Windows-only default-gateway lookup via `route print -4`'s IPv4 route
+    table, which has exactly one row for the 0.0.0.0/0.0.0.0 (default)
+    destination - route.exe is a standalone executable (not a cmd.exe
+    built-in), so it can be spawned directly like any other subprocess
+    here. Used once, same as get_default_gateway_macos() - see
+    app/database/targets_repo.py.
+    """
+    output = await _run("route", "print", "-4")
+    m = _WINDOWS_DEFAULT_ROUTE_RE.search(output)
+    return m.group(1) if m else None
 
 
 async def get_default_gateway_macos() -> Optional[str]:

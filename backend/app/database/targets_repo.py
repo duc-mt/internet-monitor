@@ -105,12 +105,23 @@ async def _detect_gateway() -> str:
     if nothing could be determined at all. Linux reads /proc/net/route
     directly (no subprocess needed); macOS has no /proc filesystem, so it
     shells out to `route -n get default` instead (see
-    app.monitoring.network_info.get_default_gateway_macos) - the two are
-    genuinely different mechanisms, not a shared code path.
+    app.monitoring.network_info.get_default_gateway_macos); Windows has
+    neither, so it shells out to `route print -4` instead (see
+    get_default_gateway_windows) - three genuinely different mechanisms,
+    not a shared code path.
     """
     if sys.platform == "darwin":
         try:
             gateway = await network_info.get_default_gateway_macos()
+            if gateway:
+                return gateway
+        except Exception:  # pragma: no cover - defensive: seeding must never crash on this
+            pass
+        return "192.168.1.1"
+
+    if sys.platform == "win32":
+        try:
+            gateway = await network_info.get_default_gateway_windows()
             if gateway:
                 return gateway
         except Exception:  # pragma: no cover - defensive: seeding must never crash on this

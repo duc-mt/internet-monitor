@@ -86,6 +86,30 @@ async def test_detect_gateway_on_macos_falls_back_on_error(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_detect_gateway_on_windows_uses_route_print(monkeypatch):
+    monkeypatch.setattr(targets_repo.sys, "platform", "win32")
+
+    async def fake_gateway():
+        return "192.168.1.1"
+
+    monkeypatch.setattr(network_info, "get_default_gateway_windows", fake_gateway)
+    gateway = await targets_repo._detect_gateway()
+    assert gateway == "192.168.1.1"
+
+
+@pytest.mark.asyncio
+async def test_detect_gateway_on_windows_falls_back_when_undetectable(monkeypatch):
+    monkeypatch.setattr(targets_repo.sys, "platform", "win32")
+
+    async def fake_gateway():
+        return None
+
+    monkeypatch.setattr(network_info, "get_default_gateway_windows", fake_gateway)
+    gateway = await targets_repo._detect_gateway()
+    assert gateway == "192.168.1.1"
+
+
+@pytest.mark.asyncio
 async def test_seed_default_targets_only_runs_once(db):
     await targets_repo.seed_default_targets(db)
     first_count = len(await targets_repo.list_targets(db))
