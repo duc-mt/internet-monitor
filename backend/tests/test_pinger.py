@@ -32,6 +32,48 @@ From 192.168.1.1 icmp_seq=1 Destination Host Unreachable
 
 DNS_FAILURE_OUTPUT_ERR = "ping: badhostname.invalid: Name or service not known\n"
 
+WINDOWS_SUCCESS_OUTPUT = """Pinging 8.8.8.8 with 32 bytes of data:
+Reply from 8.8.8.8: bytes=32 time=15ms TTL=57
+Reply from 8.8.8.8: bytes=32 time=14ms TTL=57
+Reply from 8.8.8.8: bytes=32 time=16ms TTL=57
+
+Ping statistics for 8.8.8.8:
+    Packets: Sent = 3, Received = 3, Lost = 0 (0% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 14ms, Maximum = 16ms, Average = 15ms
+"""
+
+WINDOWS_TIMEOUT_OUTPUT = """Pinging 10.255.255.1 with 32 bytes of data:
+Request timed out.
+Request timed out.
+Request timed out.
+
+Ping statistics for 10.255.255.1:
+    Packets: Sent = 3, Received = 0, Lost = 3 (100% loss),
+"""
+
+WINDOWS_UNREACHABLE_OUTPUT = """Pinging 10.0.0.99 with 32 bytes of data:
+Reply from 10.0.0.5: Destination host unreachable.
+Reply from 10.0.0.5: Destination host unreachable.
+Reply from 10.0.0.5: Destination host unreachable.
+
+Ping statistics for 10.0.0.99:
+    Packets: Sent = 3, Received = 0, Lost = 3 (100% loss),
+"""
+
+WINDOWS_DNS_FAILURE_OUTPUT = (
+    "Ping request could not find host badhostname.invalid. "
+    "Please check the name and try again.\n"
+)
+
+WINDOWS_SUBMS_OUTPUT = """Pinging 1.1.1.1 with 32 bytes of data:
+Reply from 1.1.1.1: bytes=32 time<1ms TTL=59
+Reply from 1.1.1.1: bytes=32 time<1ms TTL=59
+
+Ping statistics for 1.1.1.1:
+    Packets: Sent = 2, Received = 2, Lost = 0 (0% loss),
+"""
+
 
 class FakeProcess:
     def __init__(self, stdout: bytes, stderr: bytes = b"", returncode: int = 0):
@@ -126,6 +168,86 @@ async def test_check_icmp_dns_failure(monkeypatch):
 
     async def fake_create_subprocess_exec(*args, **kwargs):
         return FakeProcess(b"", DNS_FAILURE_OUTPUT_ERR.encode(), returncode=2)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+
+    result = await pinger.check_icmp("badhostname.invalid", count=3, timeout=2.0)
+    assert result.succeeded == 0
+    assert result.error == "DNS resolution failed"
+
+
+@pytest.mark.asyncio
+async def test_check_icmp_windows_success(monkeypatch):
+    monkeypatch.setattr(pinger, "icmp_available", lambda: True)
+    monkeypatch.setattr(pinger, "_IS_WINDOWS", True)
+
+    async def fake_create_subprocess_exec(*args, **kwargs):
+        assert "-n" in args and "-w" in args
+        assert "--" not in args  # Windows ping doesn't understand this
+        return FakeProcess(WINDOWS_SUCCESS_OUTPUT.encode())
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+
+    result = await pinger.check_icmp("8.8.8.8", count=3, timeout=2.0)
+    assert result.attempted == 3
+    assert result.succeeded == 3
+    assert result.latencies == [15.0, 14.0, 16.0]
+    assert result.error is None
+
+
+@pytest.mark.asyncio
+async def test_check_icmp_windows_handles_submillisecond_replies(monkeypatch):
+    monkeypatch.setattr(pinger, "icmp_available", lambda: True)
+    monkeypatch.setattr(pinger, "_IS_WINDOWS", True)
+
+    async def fake_create_subprocess_exec(*args, **kwargs):
+        return FakeProcess(WINDOWS_SUBMS_OUTPUT.encode())
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+
+    result = await pinger.check_icmp("1.1.1.1", count=2, timeout=2.0)
+    assert result.succeeded == 2
+    assert result.latencies == [1.0, 1.0]  # "time<1ms" parsed via the shared regex
+
+
+@pytest.mark.asyncio
+async def test_check_icmp_windows_timeout(monkeypatch):
+    monkeypatch.setattr(pinger, "icmp_available", lambda: True)
+    monkeypatch.setattr(pinger, "_IS_WINDOWS", True)
+
+    async def fake_create_subprocess_exec(*args, **kwargs):
+        return FakeProcess(WINDOWS_TIMEOUT_OUTPUT.encode())
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+
+    result = await pinger.check_icmp("10.255.255.1", count=3, timeout=2.0)
+    assert result.succeeded == 0
+    assert result.attempted == 3
+    assert result.error == "request timed out"
+
+
+@pytest.mark.asyncio
+async def test_check_icmp_windows_host_unreachable(monkeypatch):
+    monkeypatch.setattr(pinger, "icmp_available", lambda: True)
+    monkeypatch.setattr(pinger, "_IS_WINDOWS", True)
+
+    async def fake_create_subprocess_exec(*args, **kwargs):
+        return FakeProcess(WINDOWS_UNREACHABLE_OUTPUT.encode())
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+
+    result = await pinger.check_icmp("10.0.0.99", count=3, timeout=2.0)
+    assert result.succeeded == 0
+    assert result.error == "host unreachable"
+
+
+@pytest.mark.asyncio
+async def test_check_icmp_windows_dns_failure(monkeypatch):
+    monkeypatch.setattr(pinger, "icmp_available", lambda: True)
+    monkeypatch.setattr(pinger, "_IS_WINDOWS", True)
+
+    async def fake_create_subprocess_exec(*args, **kwargs):
+        return FakeProcess(WINDOWS_DNS_FAILURE_OUTPUT.encode())
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
 

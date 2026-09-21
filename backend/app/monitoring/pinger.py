@@ -34,17 +34,26 @@ from typing import Optional
 logger = logging.getLogger("internet_monitor.pinger")
 
 # Linux (iputils) `ping -W` is a per-reply timeout in *seconds*. macOS/BSD
-# ping's `-W` is the same idea but in *milliseconds*. Everything else about
-# the invocation (and the output format `_TIME_RE`/`_SUMMARY_RE` parse) is
-# close enough between the two that this is the one flag that needs to
-# differ by platform.
+# and Windows ping's `-W`/`-w` are the same idea but in *milliseconds*.
 _IS_BSD_PING = sys.platform == "darwin"
+_IS_WINDOWS = sys.platform == "win32"
 
+# `time=15ms` (Windows/Linux) or `time<1ms` (Windows, sub-millisecond) or
+# `time=12.3 ms` (Linux/macOS, space before unit) - the same regex covers
+# all of them since [=<] handles both operators and \s* makes the space
+# before "ms" optional either way.
 _TIME_RE = re.compile(r"time[=<]\s*([\d.]+)\s*ms")
+
+# Linux/macOS: "3 packets transmitted, 3 received, 0% packet loss"
 _SUMMARY_RE = re.compile(
     r"(\d+)\s+packets transmitted,\s+(\d+)\s+(?:packets\s+)?received.*?"
     r"(\d+(?:\.\d+)?)%\s+packet loss",
     re.DOTALL,
+)
+# Windows: "Packets: Sent = 3, Received = 3, Lost = 0 (0% loss),"
+_WINDOWS_SUMMARY_RE = re.compile(
+    r"Sent\s*=\s*(\d+),\s*Received\s*=\s*(\d+),\s*Lost\s*=\s*(\d+)",
+    re.IGNORECASE,
 )
 
 # Cached once we learn ICMP doesn't work in this environment, so we don't
@@ -115,11 +124,22 @@ async def check_icmp(host: str, count: int, timeout: float) -> PingBatchResult:
     if not icmp_available():
         raise PingUnavailable("the 'ping' binary is not installed")
 
-    if _IS_BSD_PING:
+    if _IS_WINDOWS:
+        # -n here means "count" (the opposite of what -n means on
+        # Linux/macOS, where it means "no DNS lookup") - Windows ping has
+        # no equivalent flag to suppress reverse DNS, but it also doesn't
+        # do one by default unless -a is passed, so nothing extra is
+        # needed. No "--" either - Windows tools don't use that
+        # end-of-options convention, and native ping.exe doesn't
+        # understand it.
+        wait_ms = str(max(1, round(timeout * 1000)))
+        args = ["ping", "-n", str(count), "-w", wait_ms, host]
+    elif _IS_BSD_PING:
         wait_arg = str(max(1, round(timeout * 1000)))  # milliseconds
+        args = ["ping", "-n", "-c", str(count), "-W", wait_arg, "--", host]
     else:
         wait_arg = str(max(1, round(timeout)))  # seconds
-    args = ["ping", "-n", "-c", str(count), "-W", wait_arg, "--", host]
+        args = ["ping", "-n", "-c", str(count), "-W", wait_arg, "--", host]
     overall_timeout = timeout * count + 2.0
 
     try:
@@ -151,19 +171,20 @@ async def check_icmp(host: str, count: int, timeout: float) -> PingBatchResult:
         raise PingUnavailable("ICMP sockets are not permitted in this environment")
 
     latencies = [float(m) for m in _TIME_RE.findall(stdout)]
-    summary = _SUMMARY_RE.search(stdout)
+    summary = (_WINDOWS_SUMMARY_RE if _IS_WINDOWS else _SUMMARY_RE).search(stdout)
 
     if summary:
-        transmitted, received, loss_pct_str = summary.groups()
-        attempted = int(transmitted)
-        succeeded = int(received)
+        # Windows summary is (sent, received, lost); Linux/macOS is
+        # (transmitted, received, loss%) - both give sent/received first.
+        attempted = int(summary.group(1))
+        succeeded = int(summary.group(2))
     else:
         attempted = count
         succeeded = len(latencies)
 
     error = None
     if succeeded == 0:
-        error = _classify_failure(combined)
+        error = _classify_failure_windows(combined) if _IS_WINDOWS else _classify_failure(combined)
 
     return PingBatchResult(method="icmp", attempted=attempted, succeeded=succeeded,
                             latencies=latencies, error=error)
@@ -182,6 +203,23 @@ def _classify_failure(combined: str) -> str:
     for line in combined.splitlines():
         line = line.strip()
         if line and not line.startswith("PING "):
+            return line[:200]
+    return "request timed out"
+
+
+def _classify_failure_windows(combined: str) -> str:
+    lowered = combined.lower()
+    if "could not find host" in lowered:
+        return "DNS resolution failed"
+    if "general failure" in lowered:
+        return "network unreachable"
+    if "host unreachable" in lowered:
+        return "host unreachable"
+    if "request timed out" in lowered:
+        return "request timed out"
+    for line in combined.splitlines():
+        line = line.strip()
+        if line and not line.lower().startswith("pinging "):
             return line[:200]
     return "request timed out"
 
