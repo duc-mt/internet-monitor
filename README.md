@@ -62,7 +62,16 @@ To install permanently as a background service, see [Installing](#installing).
 
 **Linux is the primary, fully-supported target** — everything in this repo
 (the systemd service, the `.deb` package, the AppImage, `scripts/install.sh`)
-is built for and tested against Linux, per the original brief.
+is built for and tested against Linux, per the original brief. Gateway
+detection (`/proc/net/route`) and ICMP ping need nothing beyond the base
+dependencies. The current-network-name feature additionally needs
+`iproute2` (for the wired-interface fallback) and either `wireless-tools`
+(`iwgetid`) or NetworkManager (`nmcli`) for the actual Wi-Fi SSID - already
+present on virtually every Linux **desktop** install (Ubuntu/Fedora
+Desktop, etc.), but not guaranteed on a minimal/server/container image; on
+Debian/Ubuntu: `sudo apt install iproute2 wireless-tools`. Without them,
+`network_name` is simply `null` - it degrades gracefully rather than
+failing anything else.
 
 **macOS** works for development/ad-hoc use (backend + frontend + CLI in dev
 mode — see [Quick start](#quick-start)), with two small platform patches
@@ -93,6 +102,44 @@ A native macOS port (a `launchd` background service instead of
 patches above make development and one-off testing work correctly (ping
 timing, notifications, and gateway/network detection all behave correctly
 on macOS now), not permanent background operation without a terminal open.
+
+**Windows is not supported and has not been tested.** Every platform check
+in this codebase (`sys.platform == "darwin"`) is a binary macOS-vs-other
+branch - there is no Windows branch anywhere, and the "other" side of that
+branch assumes Linux/Unix behavior throughout, which breaks in specific,
+concrete ways on Windows rather than degrading gracefully:
+
+- **ICMP ping would not run at all.** The ping command is built as
+  `ping -n -c <count> -W <wait> -- <host>` - valid Linux/BSD syntax, but
+  `-c` isn't a Windows `ping.exe` flag (Windows uses `-n` for *count*, the
+  opposite of what `-n` means on Linux/macOS), and Windows ping doesn't
+  recognize `--` as an end-of-options marker. This would fail immediately
+  rather than silently falling back to TCP, since that fallback only
+  triggers for a *missing* ping binary or an ICMP permissions error, not
+  for "the command-line arguments are wrong for this OS."
+- **Gateway detection** falls back to the hardcoded `192.168.1.1`
+  placeholder every time, the same failure mode macOS had before it got
+  its own detection path - `/proc/net/route` doesn't exist, and no
+  `ipconfig`/`route print` equivalent has been written.
+- **Network-name (SSID) detection** returns `None` every time, for the
+  same reason - no `netsh wlan show interfaces` equivalent has been
+  written.
+- **Desktop notifications** silently log instead of showing anything -
+  `notify-send` doesn't exist on Windows, and there's no
+  `New-BurntToastNotification`/`win10toast` equivalent.
+- The systemd service, `.deb`, AppImage, and `scripts/install.sh` are all
+  Linux-specific, same as on macOS.
+
+What would likely already work, untested: the TCP-protocol check path
+(`check_tcp`, pure `asyncio` sockets - no OS-specific code at all), and
+therefore anything explicitly configured as `protocol: "tcp"` rather than
+the ICMP default; the speedtest, sleep/wake-detection, and uptime%
+features (also pure Python/asyncio, no OS-specific code); and the
+dashboard/CLI, since neither has any platform-specific logic of its own.
+A real Windows port would need, at minimum, a `win32`-specific ping
+command builder and output parser, gateway/SSID detection via `ipconfig`
+or `netsh`, and a notification backend - a comparable scope of work to the
+macOS patches above, not yet attempted.
 
 ---
 
