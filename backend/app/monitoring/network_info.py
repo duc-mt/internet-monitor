@@ -61,12 +61,12 @@ def reset_cache() -> None:
     _cache_updated_at = 0.0
 
 
-async def _run(*args: str) -> str:
+async def _run(*args: str, timeout: float = _SUBPROCESS_TIMEOUT) -> str:
     try:
         proc = await asyncio.create_subprocess_exec(
             *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
         )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=_SUBPROCESS_TIMEOUT)
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         return stdout.decode(errors="replace")
     except (FileNotFoundError, asyncio.TimeoutError, OSError):
         return ""
@@ -105,6 +105,36 @@ async def _macos_default_route_interface() -> Optional[str]:
 async def _macos_ssid(device: str) -> Optional[str]:
     output = await _run("networksetup", "-getairportnetwork", device)
     m = re.search(r"Current Wi-Fi Network:\s*(.+)", output)
+    if m:
+        return m.group(1).strip()
+    # macOS 15 (Sequoia) onward, `networksetup -getairportnetwork` no
+    # longer returns a real SSID at all - a deliberate Location Services
+    # privacy restriction (confirmed via macadmin community reports), not
+    # something a regex against its output can work around. system_profiler
+    # isn't subject to the same restriction, so fall back to it.
+    return await _macos_ssid_via_system_profiler()
+
+
+# Matches a bare "<name>:" line immediately under "Current Network
+# Information:" - i.e. the SSID acting as a nested section header, with
+# nothing else on that line. This is what tells it apart from a plain
+# "Key: Value" line (which has non-whitespace after the colon and so
+# cannot match here) - notably the awdl0 (AirDrop) pseudo-interface, whose
+# own "Current Network Information:" block has no name header at all and
+# goes straight to "Network Type: Infrastructure".
+_SYSTEM_PROFILER_SSID_RE = re.compile(r"Current Network Information:\r?\n\s*([^\r\n:]+):[ \t]*\r?\n")
+
+
+async def _macos_ssid_via_system_profiler() -> Optional[str]:
+    """
+    Noticeably slower than the other lookups here (system_profiler
+    enumerates hardware, sometimes taking a few seconds) - acceptable
+    since the overall result is cached for _CACHE_TTL regardless of which
+    method produced it, and this is only reached at all once the fast
+    networksetup path has already failed.
+    """
+    output = await _run("system_profiler", "SPAirPortDataType", "-detailLevel", "basic", timeout=8.0)
+    m = _SYSTEM_PROFILER_SSID_RE.search(output)
     return m.group(1).strip() if m else None
 
 

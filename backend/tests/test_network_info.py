@@ -19,6 +19,31 @@ MACOS_ROUTE_ETHERNET = "   route to: default\ndestination: default\ninterface: e
 MACOS_SSID_CONNECTED = "Current Wi-Fi Network: HomeWiFi\n"
 MACOS_SSID_DISCONNECTED = "You are not associated with an AirPort network.\n"
 
+# Trimmed but structurally faithful to real `system_profiler SPAirPortDataType`
+# output (macOS 15/Sequoia, where networksetup's SSID lookup is blocked) -
+# note the awdl0 (AirDrop) block also has a "Current Network Information:"
+# section, but with no name header, straight to "Network Type: Infrastructure".
+MACOS_SYSTEM_PROFILER_OUTPUT = """Wi-Fi:
+
+      Interfaces:
+        en0:
+          Card Type: Wi-Fi
+          Status: Connected
+          Current Network Information:
+            HomeNetworkVN:
+              PHY Mode: 802.11ac
+              Channel: 100 (5GHz, 40MHz)
+              Security: WPA2 Personal
+          Other Local Wi-Fi Networks:
+            SomeNeighborWiFi:
+              PHY Mode: 802.11a/n/ac/ax
+              Security: WPA2 Personal
+        awdl0:
+          MAC Address: 7a:c8:7d:64:90:2a
+          Current Network Information:
+              Network Type: Infrastructure
+"""
+
 
 @pytest.fixture(autouse=True)
 def _reset_cache():
@@ -28,7 +53,7 @@ def _reset_cache():
 
 
 def _fake_run(responses: dict[str, str]):
-    async def fake(*args: str) -> str:
+    async def fake(*args: str, timeout: float = 3.0) -> str:
         return responses.get(args[0], "")
     return fake
 
@@ -49,6 +74,72 @@ async def test_macos_returns_ssid_when_on_wifi(monkeypatch):
     monkeypatch.setattr(network_info, "_run", fake_run)
     name = await network_info.get_network_name(force=True)
     assert name == "HomeWiFi"
+
+
+@pytest.mark.asyncio
+async def test_macos_falls_back_to_system_profiler_when_networksetup_is_blocked(monkeypatch):
+    """networksetup -getairportnetwork returns no usable SSID on macOS 15+
+    (a deliberate OS restriction) - system_profiler must be tried next."""
+    monkeypatch.setattr(network_info, "_IS_MACOS", True)
+
+    async def fake_run(*args: str, timeout: float = 3.0) -> str:
+        if args[0] == "networksetup" and args[1] == "-listallhardwareports":
+            return MACOS_HARDWARE_PORTS
+        if args[0] == "networksetup" and args[1] == "-getairportnetwork":
+            return MACOS_SSID_DISCONNECTED  # what macOS 15 actually returns now
+        if args[0] == "system_profiler":
+            return MACOS_SYSTEM_PROFILER_OUTPUT
+        if args[0] == "route":
+            return MACOS_ROUTE_WIFI
+        return ""
+
+    monkeypatch.setattr(network_info, "_run", fake_run)
+    name = await network_info.get_network_name(force=True)
+    assert name == "HomeNetworkVN"
+
+
+@pytest.mark.asyncio
+async def test_system_profiler_parser_ignores_awdl_block(monkeypatch):
+    monkeypatch.setattr(network_info, "_IS_MACOS", True)
+
+    async def fake_run(*args: str, timeout: float = 3.0) -> str:
+        return MACOS_SYSTEM_PROFILER_OUTPUT if args[0] == "system_profiler" else ""
+
+    monkeypatch.setattr(network_info, "_run", fake_run)
+    ssid = await network_info._macos_ssid_via_system_profiler()
+    assert ssid == "HomeNetworkVN"
+    assert ssid != "Network Type"  # the awdl0 block must never be picked up
+
+
+@pytest.mark.asyncio
+async def test_system_profiler_parser_returns_none_when_no_match(monkeypatch):
+    monkeypatch.setattr(network_info, "_run", _fake_run({}))
+    assert await network_info._macos_ssid_via_system_profiler() is None
+
+
+@pytest.mark.asyncio
+async def test_macos_does_not_call_system_profiler_when_networksetup_succeeds(monkeypatch):
+    """The slow fallback must only run when the fast path actually fails."""
+    monkeypatch.setattr(network_info, "_IS_MACOS", True)
+    system_profiler_called = False
+
+    async def fake_run(*args: str, timeout: float = 3.0) -> str:
+        nonlocal system_profiler_called
+        if args[0] == "networksetup" and args[1] == "-listallhardwareports":
+            return MACOS_HARDWARE_PORTS
+        if args[0] == "networksetup" and args[1] == "-getairportnetwork":
+            return MACOS_SSID_CONNECTED
+        if args[0] == "system_profiler":
+            system_profiler_called = True
+            return MACOS_SYSTEM_PROFILER_OUTPUT
+        if args[0] == "route":
+            return MACOS_ROUTE_WIFI
+        return ""
+
+    monkeypatch.setattr(network_info, "_run", fake_run)
+    name = await network_info.get_network_name(force=True)
+    assert name == "HomeWiFi"
+    assert system_profiler_called is False
 
 
 @pytest.mark.asyncio

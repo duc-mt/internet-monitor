@@ -462,6 +462,16 @@ why:
   `apt install`. For a fully offline install, use the AppImage (which
   vendors dependencies at *build* time) or `pip download` the
   requirements yourself ahead of time.
+- **macOS SSID detection has two fallback layers.** `networksetup
+  -getairportnetwork` is tried first (fast), but Apple disabled it from
+  returning a real SSID at all starting with macOS 15/Sequoia (a
+  deliberate Location Services privacy restriction, confirmed via
+  macadmin community reports - not something fixable from this side).
+  `system_profiler SPAirPortDataType` isn't subject to that restriction
+  and is used as a fallback when the fast path fails - it's noticeably
+  slower (spawns a heavier process), which is fine given the whole
+  network-name result is cached for 30s regardless of which method
+  produced it.
 - **Gateway auto-detection is a genuinely different mechanism per platform,
   not a shared code path.** Linux reads `/proc/net/route` directly (no
   subprocess needed); macOS has no `/proc` filesystem, so it shells out to
