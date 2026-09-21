@@ -14,7 +14,7 @@ from app.models.settings import AppSettings
 from app.models.target import TargetOut
 from app.monitoring import network_info
 from app.monitoring.pinger import PingBatchResult, run_check
-from app.services import connectivity_service, notification_service, outage_service
+from app.services import connectivity_service, notification_service, outage_service, sleep_service
 from app.services.settings_service import get_settings
 
 logger = logging.getLogger("internet_monitor.scheduler")
@@ -115,6 +115,13 @@ class MonitoringManager:
                 ))
                 await self._check_thresholds(current, result, settings)
                 async with self._eval_lock:
+                    # Sleep-gap check first: it only ever *records* a
+                    # closed system_sleep row from state it already had, it
+                    # never reads the outcome of this check's own insert
+                    # below, so ordering relative to connectivity/outage
+                    # evaluation doesn't matter for correctness - this order
+                    # just keeps the "did we just wake up" signal freshest.
+                    await sleep_service.check_gap(conn, settings.sleep_gap_threshold_seconds)
                     await connectivity_service.evaluate(conn, settings)
                     await outage_service.evaluate(conn, settings)
             except asyncio.CancelledError:
