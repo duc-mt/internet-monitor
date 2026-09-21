@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.database import targets_repo
 from app.models.target import TargetCreate, TargetUpdate
+from app.monitoring import network_info
 
 
 @pytest.mark.asyncio
@@ -46,6 +47,42 @@ async def test_delete_target(db):
     assert await targets_repo.delete_target(db, created.id) is True
     assert await targets_repo.get_target(db, created.id) is None
     assert await targets_repo.delete_target(db, created.id) is False
+
+
+@pytest.mark.asyncio
+async def test_detect_gateway_on_macos_uses_route_command(monkeypatch):
+    monkeypatch.setattr(targets_repo.sys, "platform", "darwin")
+
+    async def fake_gateway():
+        return "10.119.5.254"
+
+    monkeypatch.setattr(network_info, "get_default_gateway_macos", fake_gateway)
+    gateway = await targets_repo._detect_gateway()
+    assert gateway == "10.119.5.254"
+
+
+@pytest.mark.asyncio
+async def test_detect_gateway_on_macos_falls_back_when_undetectable(monkeypatch):
+    monkeypatch.setattr(targets_repo.sys, "platform", "darwin")
+
+    async def fake_gateway():
+        return None
+
+    monkeypatch.setattr(network_info, "get_default_gateway_macos", fake_gateway)
+    gateway = await targets_repo._detect_gateway()
+    assert gateway == "192.168.1.1"
+
+
+@pytest.mark.asyncio
+async def test_detect_gateway_on_macos_falls_back_on_error(monkeypatch):
+    monkeypatch.setattr(targets_repo.sys, "platform", "darwin")
+
+    async def fake_gateway():
+        raise RuntimeError("route command not found")
+
+    monkeypatch.setattr(network_info, "get_default_gateway_macos", fake_gateway)
+    gateway = await targets_repo._detect_gateway()
+    assert gateway == "192.168.1.1"
 
 
 @pytest.mark.asyncio

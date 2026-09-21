@@ -108,6 +108,20 @@ async def _macos_ssid(device: str) -> Optional[str]:
     return m.group(1).strip() if m else None
 
 
+async def get_default_gateway_macos() -> Optional[str]:
+    """
+    macOS-only default-gateway lookup (the same `route -n get default`
+    parsed above for the interface, here for the gateway field instead).
+    Used once, to seed the default "Gateway" target the first time a
+    database is created (see app/database/targets_repo.py) - unlike
+    get_network_name() above, this isn't cached, since it only ever runs
+    once per fresh database rather than on every measurement.
+    """
+    output = await _run("route", "-n", "get", "default")
+    m = re.search(r"gateway:\s*(\S+)", output)
+    return m.group(1) if m else None
+
+
 # --- Linux --------------------------------------------------------------
 
 async def _linux_network_name() -> Optional[str]:
