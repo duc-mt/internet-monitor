@@ -276,6 +276,7 @@ current values. An example is below:
   "latency_warning_threshold_ms": 150,
   "packet_loss_warning_threshold_pct": 5,
   "outage_threshold_checks": 3,
+  "sleep_gap_threshold_seconds": 60,
   "classification": {
     "excellent_latency_ms": 30, "excellent_packet_loss_pct": 1,
     "good_latency_ms": 60, "good_packet_loss_pct": 2,

@@ -66,6 +66,9 @@ async def compute_statistics(
     latencies = await measurements_repo.latencies_in_range(conn, target_id=target_id, start=start_iso, end=end_iso)
     agg = await measurements_repo.aggregate_in_range(conn, target_id=target_id, start=start_iso, end=end_iso)
     outage_agg = await outages_repo.outage_stats_in_range(conn, start=start_iso, end=end_iso)
+    real_downtime_seconds, sleep_seconds = await outages_repo.downtime_and_sleep_seconds_in_range(
+        conn, start=start_iso, end=end_iso
+    )
 
     sorted_latencies = sorted(latencies)
     duration_seconds = 0.0
@@ -76,6 +79,19 @@ async def compute_statistics(
             duration_seconds = max(0.0, (last - first).total_seconds())
         except ValueError:
             duration_seconds = 0.0
+
+    # Uptime% is computed over the time we actually observed (data coverage
+    # minus detected sleep gaps), not the raw wall-clock size of the
+    # requested range - a fresh install asked about "last 30 days" should
+    # not be penalized (or flattered) for the days before it existed, and a
+    # laptop that slept for 8 of the last 24 hours shouldn't have those 8
+    # hours silently counted as either "up" or "down" - excluded from both
+    # sides of the ratio, same as it's excluded from the outage log.
+    effective_seconds = max(0.0, duration_seconds - sleep_seconds)
+    uptime_pct = (
+        round(max(0.0, 100 * (1 - real_downtime_seconds / effective_seconds)), 2)
+        if effective_seconds > 0 else None
+    )
 
     return StatisticsResponse(
         range_start=start_iso,
@@ -89,6 +105,7 @@ async def compute_statistics(
         p95_latency_ms=round(percentile(sorted_latencies, 95), 2) if sorted_latencies else None,
         packet_loss_pct=round(agg["avg_packet_loss"], 2) if agg.get("avg_packet_loss") is not None else None,
         avg_jitter_ms=round(agg["avg_jitter"], 2) if agg.get("avg_jitter") is not None else None,
+        uptime_pct=uptime_pct,
         outage_count=outage_agg.get("outage_count") or 0,
         longest_outage_seconds=outage_agg.get("longest"),
         monitoring_duration_seconds=duration_seconds,

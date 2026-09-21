@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Wifi, Gauge, PackageX, Waves, Clock, Router } from "lucide-react";
+import { Wifi, Gauge, PackageX, Waves, Clock, Router, ShieldCheck } from "lucide-react";
 import { useStatus } from "../hooks/useStatus";
 import { usePolling } from "../hooks/usePolling";
 import { api } from "../services/api";
@@ -56,7 +56,7 @@ export function Dashboard() {
 
       <SpeedtestButton />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           label="Internet"
           value={status.online ? "Online" : "Offline"}
@@ -67,6 +67,15 @@ export function Dashboard() {
         <StatCard label="Latency" value={formatLatency(status.latency_ms).replace(" ms", "")} unit="ms" icon={<Gauge size={16} />} />
         <StatCard label="Packet loss" value={formatPct(status.packet_loss).replace("%", "")} unit="%" icon={<PackageX size={16} />} />
         <StatCard label="Jitter" value={formatLatency(status.jitter_ms).replace(" ms", "")} unit="ms" icon={<Waves size={16} />} />
+        <StatCard
+          label="Uptime (24h)"
+          value={status.uptime_pct_24h !== null ? status.uptime_pct_24h.toFixed(1) : "—"}
+          unit={status.uptime_pct_24h !== null ? "%" : undefined}
+          icon={<ShieldCheck size={16} />}
+          accentColor={
+            status.uptime_pct_24h !== null && status.uptime_pct_24h < 99 ? "var(--color-degraded)" : undefined
+          }
+        />
       </div>
 
       <LatencyChart

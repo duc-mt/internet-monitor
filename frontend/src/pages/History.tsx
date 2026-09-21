@@ -130,6 +130,7 @@ export function History() {
       {statsError && <ErrorState message={statsError} />}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <Stat label="Uptime" value={stats.uptime_pct !== null ? `${stats.uptime_pct.toFixed(2)}%` : "—"} />
           <Stat label="Avg latency" value={formatLatency(stats.avg_latency_ms)} />
           <Stat label="Min / Max" value={`${formatLatency(stats.min_latency_ms)} / ${formatLatency(stats.max_latency_ms)}`} />
           <Stat label="Median" value={formatLatency(stats.median_latency_ms)} />

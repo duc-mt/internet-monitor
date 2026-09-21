@@ -29,6 +29,7 @@ const mockStatus: StatusResponse = {
   packet_loss: 0,
   jitter_ms: 1.2,
   monitoring_uptime_seconds: 3661,
+  uptime_pct_24h: 99.8,
   targets_reachable: 3,
   targets_total: 3,
   targets: [
