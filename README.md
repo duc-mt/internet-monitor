@@ -103,43 +103,50 @@ patches above make development and one-off testing work correctly (ping
 timing, notifications, and gateway/network detection all behave correctly
 on macOS now), not permanent background operation without a terminal open.
 
-**Windows is not supported and has not been tested.** Every platform check
-in this codebase (`sys.platform == "darwin"`) is a binary macOS-vs-other
-branch - there is no Windows branch anywhere, and the "other" side of that
-branch assumes Linux/Unix behavior throughout, which breaks in specific,
-concrete ways on Windows rather than degrading gracefully:
+**Windows has a compatibility layer, written but not yet verified on real
+hardware** (no Windows machine was available to test against - unlike the
+macOS patches, which were confirmed on real hardware turn by turn). Every
+platform-specific mechanism now has a `win32` branch, built against
+documented Windows command syntax and output formats rather than guessed:
 
-- **ICMP ping would not run at all.** The ping command is built as
-  `ping -n -c <count> -W <wait> -- <host>` - valid Linux/BSD syntax, but
-  `-c` isn't a Windows `ping.exe` flag (Windows uses `-n` for *count*, the
-  opposite of what `-n` means on Linux/macOS), and Windows ping doesn't
-  recognize `--` as an end-of-options marker. This would fail immediately
-  rather than silently falling back to TCP, since that fallback only
-  triggers for a *missing* ping binary or an ICMP permissions error, not
-  for "the command-line arguments are wrong for this OS."
-- **Gateway detection** falls back to the hardcoded `192.168.1.1`
-  placeholder every time, the same failure mode macOS had before it got
-  its own detection path - `/proc/net/route` doesn't exist, and no
-  `ipconfig`/`route print` equivalent has been written.
-- **Network-name (SSID) detection** returns `None` every time, for the
-  same reason - no `netsh wlan show interfaces` equivalent has been
-  written.
-- **Desktop notifications** silently log instead of showing anything -
-  `notify-send` doesn't exist on Windows, and there's no
-  `New-BurntToastNotification`/`win10toast` equivalent.
-- The systemd service, `.deb`, AppImage, and `scripts/install.sh` are all
-  Linux-specific, same as on macOS.
+- **ICMP ping** builds `ping -n <count> -w <wait_ms> <host>` (Windows'
+  actual count/timeout flags - notably `-n` means *count* here, the
+  opposite of Linux/macOS - and no `--` separator, which Windows tools
+  don't use). Parses both `Reply from X: bytes=32 time=15ms TTL=57` and
+  the `Packets: Sent = N, Received = N, Lost = N` summary line, including
+  the `time<1ms` sub-millisecond format and Windows-specific failure text
+  (`could not find host`, `Destination host unreachable`, `Request timed
+  out`, `General failure`).
+- **Gateway detection** parses the `0.0.0.0  0.0.0.0  <gateway>` row from
+  `route print -4`'s IPv4 route table.
+- **Network-name (SSID) detection** parses `SSID` (never `BSSID`, which
+  the regex is anchored to exclude) from `netsh wlan show interfaces`
+  when connected to Wi-Fi; falls back to a generic `"Wired"` label
+  (not a specific adapter name, unlike the macOS/Linux versions - Windows
+  has no equally simple single command for that correlation) when there's
+  a working default route but no Wi-Fi SSID.
+- **Desktop notifications** use Windows PowerShell (bundled with every
+  Windows 10/11 install, no module to install) driving the WinRT toast
+  API directly. This is the one piece with a known, specific residual
+  risk even once it runs: a bare script invocation like this typically
+  borrows PowerShell's own AppUserModelID rather than registering its
+  own, so the toast may show correctly under "Windows PowerShell" as the
+  sender, or be suppressed entirely on a system where a given Windows
+  build enforces stricter AUMID requirements or where PowerShell's own
+  notifications happen to be disabled in Settings - something only real
+  hardware can confirm either way.
+- The systemd service, `.deb`, AppImage, and `scripts/install.sh` remain
+  Linux-specific, same as on macOS - there is no Windows service/installer
+  equivalent (would be an MSI or a Windows Service wrapper, not attempted).
 
-What would likely already work, untested: the TCP-protocol check path
-(`check_tcp`, pure `asyncio` sockets - no OS-specific code at all), and
-therefore anything explicitly configured as `protocol: "tcp"` rather than
-the ICMP default; the speedtest, sleep/wake-detection, and uptime%
-features (also pure Python/asyncio, no OS-specific code); and the
-dashboard/CLI, since neither has any platform-specific logic of its own.
-A real Windows port would need, at minimum, a `win32`-specific ping
-command builder and output parser, gateway/SSID detection via `ipconfig`
-or `netsh`, and a notification backend - a comparable scope of work to the
-macOS patches above, not yet attempted.
+Everything above is covered by mocked unit tests (exact command
+arguments, realistic sample output parsing, escaping) but **none of it has
+been run against a real Windows machine.** If you're on Windows and try
+this, the most useful thing you can do is exactly what confirmed the
+macOS behavior above: run the specific command yourself
+(`route print -4`, `netsh wlan show interfaces`, `ping -n 3 -w 2000
+1.1.1.1`) and share the output if anything looks off - real output beats
+guessing every time.
 
 ---
 
