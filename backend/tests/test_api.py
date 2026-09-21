@@ -60,7 +60,10 @@ def test_status_endpoint_shape(client):
     resp = client.get("/api/status")
     assert resp.status_code == 200
     body = resp.json()
-    for key in ("online", "quality", "targets_reachable", "targets_total", "targets", "monitoring_running"):
+    for key in (
+        "online", "quality", "targets_reachable", "targets_total", "targets", "monitoring_running",
+        "network_name", "uptime_pct_24h",
+    ):
         assert key in body
 
 

@@ -8,7 +8,7 @@ import aiosqlite
 from app.database import measurements_repo, outages_repo, targets_repo
 from app.models.status import StatusResponse, TargetStatus
 from app.monitoring import network_info
-from app.services import quality_service
+from app.services import quality_service, statistics_service
 from app.services.settings_service import get_settings
 
 
@@ -62,6 +62,11 @@ async def compute_status(
 
     active_outage = await outages_repo.get_active_outage(conn)
     network_name = await network_info.get_network_name()
+    # Reuses the exact same downtime/sleep-exclusion logic as the History
+    # page's range stats (statistics_service) rather than a second
+    # implementation of the same math - a fixed 24h window is what most
+    # dashboards mean by a headline "uptime" figure.
+    uptime_24h = await statistics_service.compute_statistics(conn, range_name="24h")
 
     return StatusResponse(
         online=online,
@@ -71,6 +76,7 @@ async def compute_status(
         jitter_ms=avg_jitter,
         network_name=network_name,
         monitoring_uptime_seconds=uptime,
+        uptime_pct_24h=uptime_24h.uptime_pct,
         targets_reachable=reachable_count,
         targets_total=len(targets),
         targets=target_statuses,

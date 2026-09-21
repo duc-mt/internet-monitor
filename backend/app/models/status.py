@@ -25,6 +25,7 @@ class StatusResponse(BaseModel):
     jitter_ms: Optional[float]
     network_name: Optional[str] = None
     monitoring_uptime_seconds: float
+    uptime_pct_24h: Optional[float] = None
     targets_reachable: int
     targets_total: int
     targets: List[TargetStatus]
@@ -44,6 +45,7 @@ class StatisticsResponse(BaseModel):
     p95_latency_ms: Optional[float]
     packet_loss_pct: Optional[float]
     avg_jitter_ms: Optional[float]
+    uptime_pct: Optional[float]
     outage_count: int
     longest_outage_seconds: Optional[float]
     monitoring_duration_seconds: float
