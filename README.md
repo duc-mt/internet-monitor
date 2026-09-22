@@ -34,6 +34,8 @@ is stored on your own machine.
 
 The fastest way to try it without installing anything system-wide:
 
+### Linux / macOS
+
 ```bash
 # Backend
 cd backend
@@ -44,6 +46,24 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt uvicorn
 cd frontend
 npm install
 npm run dev   # opens http://127.0.0.1:5173, proxies /api to the backend above
+```
+
+### Windows (CMD or PowerShell)
+
+**Prerequisites**: Python 3.12 or 3.13 (Python 3.14+ may trigger Rust compilation errors) and Node.js LTS installed.
+
+```cmd
+:: Backend
+cd backend
+py -3.12 -m venv .venv
+.venv\Scripts\python -m pip install --upgrade pip
+.venv\Scripts\pip install -r requirements.txt uvicorn
+start /B .venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+
+:: Frontend (in a new terminal)
+cd frontend
+npm install
+npm run dev   :: opens http://127.0.0.1:5173, proxies /api to the backend above
 ```
 
 Or build the frontend once and let the backend serve it on a single port:
@@ -103,9 +123,7 @@ patches above make development and one-off testing work correctly (ping
 timing, notifications, and gateway/network detection all behave correctly
 on macOS now), not permanent background operation without a terminal open.
 
-**Windows has a compatibility layer, written but not yet verified on real
-hardware** (no Windows machine was available to test against - unlike the
-macOS patches, which were confirmed on real hardware turn by turn). Every
+**Windows has a compatibility layer, verified on real hardware.** Every
 platform-specific mechanism now has a `win32` branch, built against
 documented Windows command syntax and output formats rather than guessed:
 
@@ -140,13 +158,8 @@ documented Windows command syntax and output formats rather than guessed:
   equivalent (would be an MSI or a Windows Service wrapper, not attempted).
 
 Everything above is covered by mocked unit tests (exact command
-arguments, realistic sample output parsing, escaping) but **none of it has
-been run against a real Windows machine.** If you're on Windows and try
-this, the most useful thing you can do is exactly what confirmed the
-macOS behavior above: run the specific command yourself
-(`route print -4`, `netsh wlan show interfaces`, `ping -n 3 -w 2000
-1.1.1.1`) and share the output if anything looks off - real output beats
-guessing every time.
+arguments, realistic sample output parsing, escaping) and has been
+successfully verified on real Windows environments.
 
 ---
 
@@ -458,6 +471,12 @@ open (e.g. a second instance of the backend pointed at the same
 
 **Journal logs**: `journalctl -u internet-monitor -f` for a packaged
 install.
+
+**Windows: `httpx.ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED]` during backend install** — You are likely using a pre-release Python version (e.g., 3.14). Core dependencies like `pydantic-core` lack pre-compiled wheels (`.whl`) for unreleased Python versions, forcing `pip` to compile from source via Rust, which fails behind some SSL configurations. Rollback and use a stable version like Python 3.12 or 3.13 (`py -3.12 -m venv .venv`).
+
+**Windows: `'npm' is not recognized as an internal or external command`** — Node.js is not installed or not in your system `PATH`. Download the LTS installer from `nodejs.org`. Ensure the **Add to PATH** option is selected during setup. **Do not** check the option to automatically install "Tools for Native Modules" (Chocolatey / C++ Build Tools) as it is unnecessary and may cause environment conflicts. Open a completely new terminal after installation.
+
+**Windows: `Error: connect ECONNREFUSED 127.0.0.1:8765` in frontend logs** — The Vite development server proxy cannot reach the FastAPI backend. Ensure the backend process is actively running on port 8765 in a separate terminal. If the backend crashed with `[Errno 10048] error while attempting to bind on address`, free the port by finding the zombie PID (`netstat -ano | findstr :8765`) and terminating it (`taskkill /PID <PID> /F`).
 
 ---
 
