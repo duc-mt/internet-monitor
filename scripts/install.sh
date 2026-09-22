@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Install Internet Monitor from a source checkout (no .deb/AppImage needed).
-# For most users, building the .deb (packaging/deb/build.sh) and installing
-# that is easier - this script is the manual equivalent, useful for
-# development machines or distros without dpkg.
+# Install Internet Monitor from a source checkout. Works on any
+# systemd-based Linux distribution.
 #
 # Usage: sudo ./scripts/install.sh [--enable]
 #   --enable   also enable and start the systemd service immediately.
