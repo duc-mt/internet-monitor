@@ -8,7 +8,7 @@ is stored on your own machine.
 - **Backend**: Python 3.12 / FastAPI, async monitoring engine, SQLite storage
 - **Frontend**: React + TypeScript + Tailwind CSS dashboard
 - **CLI**: `internet-monitor` — talks to the same local REST API
-- **Packaging**: systemd service, `.deb`, and a portable AppImage
+- **Packaging**: systemd service, installed via `scripts/install.sh`
 
 ---
 
@@ -19,7 +19,7 @@ is stored on your own machine.
 3. [Architecture](#architecture)
 4. [Building from source](#building-from-source)
 5. [Running](#running)
-6. [Installing (deb / AppImage / manual)](#installing)
+6. [Installing](#installing)
 7. [Uninstalling](#uninstalling)
 8. [Configuration](#configuration)
 9. [The CLI](#the-cli)
@@ -81,8 +81,8 @@ To install permanently as a background service, see [Installing](#installing).
 ## Platform support
 
 **Linux is the primary, fully-supported target** — everything in this repo
-(the systemd service, the `.deb` package, the AppImage, `scripts/install.sh`)
-is built for and tested against Linux, per the original brief. Gateway
+(the systemd service, installed via `scripts/install.sh`) is built for and
+tested against Linux, per the original brief. Gateway
 detection (`/proc/net/route`) and ICMP ping need nothing beyond the base
 dependencies. The current-network-name feature additionally needs
 `iproute2` (for the wired-interface fallback) and either `wireless-tools`
@@ -104,11 +104,9 @@ applied so the core monitoring logic behaves correctly:
 
 What does **not** work on macOS, and hasn't been ported:
 
-- The systemd service, `.deb` package, and AppImage — Linux-specific by
-  design (AppImage in particular is a Linux binary format and fails with
-  `exec format error` if you try to run it on a Mac).
-- `scripts/install.sh` / `uninstall.sh` — call `useradd`/`systemctl`, which
-  don't exist on macOS.
+- The systemd service (`scripts/install.sh`/`uninstall.sh` call
+  `useradd`/`systemctl`, which don't exist on macOS) — Linux-specific by
+  design.
 
 For ad-hoc testing on macOS (e.g. checking connectivity quality at a
 physical location you're visiting), see `test-site.sh` at the project
@@ -153,7 +151,7 @@ documented Windows command syntax and output formats rather than guessed:
   build enforces stricter AUMID requirements or where PowerShell's own
   notifications happen to be disabled in Settings - something only real
   hardware can confirm either way.
-- The systemd service, `.deb`, AppImage, and `scripts/install.sh` remain
+- The systemd service and `scripts/install.sh`/`uninstall.sh` remain
   Linux-specific, same as on macOS - there is no Windows service/installer
   equivalent (would be an MSI or a Windows Service wrapper, not attempted).
 
@@ -180,10 +178,8 @@ internet-monitor/
 ├── frontend/           React + TypeScript + Tailwind dashboard (Vite)
 ├── cli/                `internet-monitor` command-line client (Click + httpx)
 ├── packaging/
-│   ├── systemd/        internet-monitor.service (hardened unit)
-│   ├── deb/            debian control files + build.sh
-│   └── appimage/       AppRun + .desktop + icon + build.sh
-└── scripts/            install.sh / uninstall.sh (manual, non-package install)
+│   └── systemd/        internet-monitor.service (hardened unit)
+└── scripts/            install.sh / uninstall.sh (the only install path)
 ```
 
 **Data flow**: `scheduler.py` runs one async task per enabled target. Each
@@ -257,69 +253,29 @@ Useful environment variables (all optional):
 
 ## Installing
 
-### Option A — Debian package (recommended on Debian/Ubuntu)
-
 ```bash
-./packaging/deb/build.sh           # builds frontend if needed, produces dist/internet-monitor_1.0.0_all.deb
-sudo apt install ./dist/internet-monitor_1.0.0_all.deb
+sudo ./scripts/install.sh --enable
 ```
 
 This creates an unprivileged `internet-monitor` system user, installs to
 `/opt/internet-monitor`, sets up a Python virtual environment (fetching
 FastAPI/uvicorn/etc. from PyPI — **an internet connection is required at
-install time**), installs the systemd unit, and enables + starts the
-service immediately.
+install time**), installs the systemd unit, and (with `--enable`) enables
++ starts the service immediately. Works on any systemd-based Linux
+distribution, not just Debian/Ubuntu.
 
 ```bash
 sudo systemctl status internet-monitor
 internet-monitor status
 ```
 
-### Option B — AppImage (portable, no install, no root)
-
-```bash
-./packaging/appimage/build.sh      # produces dist/Internet-Monitor-<arch>.AppImage
-./dist/Internet-Monitor-x86_64.AppImage
-```
-
-This starts the server in the foreground, opens the dashboard in your
-default browser, and stops when you press Ctrl+C. It does **not** register
-a systemd service or run on boot — that's what Option A is for. It's meant
-for trying the app out or running it ad hoc. You can also drive the bundled
-CLI without installing anything: `./Internet-Monitor-x86_64.AppImage --cli status`.
-
-Building an AppImage requires network access once, to fetch `appimagetool`
-from GitHub releases (cached under `packaging/appimage/build/` afterward).
-The AppImage bundles pure-Python dependencies but runs them with the
-**system** `python3` (≥3.10) rather than an embedded interpreter — see
-[Engineering decisions](#engineering-decisions--known-limitations).
-
-Run the build script on each architecture you want to support (x86_64,
-aarch64) — it packages for whatever architecture it's run on.
-
-### Option C — Manual install (no .deb, any systemd Linux)
-
-```bash
-sudo ./scripts/install.sh --enable
-```
-
-Same end result as the `.deb`, without needing `dpkg`.
-
 ---
 
 ## Uninstalling
 
 ```bash
-# if installed via .deb
-sudo apt remove internet-monitor        # keeps data in /var/lib/internet-monitor
-sudo apt purge internet-monitor         # also deletes stored history/settings
-
-# if installed via scripts/install.sh
-sudo ./scripts/uninstall.sh             # keeps data
+sudo ./scripts/uninstall.sh             # keeps data in /var/lib/internet-monitor
 sudo ./scripts/uninstall.sh --purge     # also deletes stored history/settings
-
-# AppImage
-rm dist/Internet-Monitor-*.AppImage     # it's just a file; nothing else was installed
 ```
 
 ---
@@ -419,17 +375,8 @@ outage detection) — see the CLI section above for the exact commands.
 
 ## Packaging internals
 
-- **`.deb`** (`packaging/deb/`): hand-built via `dpkg-deb` (no `debhelper`)
-  from `packaging/deb/debian/{control,postinst,prerm,postrm,conffiles}`.
-  `postinst` creates the service user, a venv, and pip-installs the
-  backend + CLI from `requirements.txt` — this is why installing the
-  package requires network access, and why it's `Architecture: all` (the
-  Python dependencies aren't compiled at package-build time).
-- **AppImage** (`packaging/appimage/`): an `AppDir` with the app code,
-  `pip install --target`-vendored dependencies, `AppRun`, a `.desktop`
-  file, and a generated icon, packaged with `appimagetool`
-  (`--appimage-extract-and-run`, so it doesn't require FUSE to build).
-- **systemd** (`packaging/systemd/internet-monitor.service`): see the
+- **systemd** (`packaging/systemd/internet-monitor.service`), installed by
+  `scripts/install.sh`: see the
   comments in the unit file for the capability/hardening reasoning
   (short version: `NoNewPrivileges=true` + `ProtectSystem=strict` +
   everything else locked down, with exactly one capability —
@@ -511,30 +458,17 @@ why:
   `error` field with a "used TCP instead" note forever.
 - **The systemd unit needs `CAP_NET_RAW` for ICMP under `NoNewPrivileges`.**
   See the packaging section above and the unit file's comments.
-- **The AppImage runs on the system Python, not a bundled interpreter.**
-  Fully vendoring a relocatable CPython build (e.g. via
-  `python-build-standalone`) would make the AppImage larger and more
-  complex to maintain across glibc versions for arguably little benefit,
-  since virtually every target Linux desktop already has Python 3.10+.
-  Only the pure-Python *dependencies* are vendored (via `pip install
-  --target`).  A consequence: the AppImage will refuse to run (with a
-  clear error) on a system with no `python3` on `PATH` at all, and Python
-  C-extension wheels (`pydantic-core`, `uvloop`, etc.) are
-  architecture-specific, so `packaging/appimage/build.sh` must be run once
-  per target architecture (x86_64, aarch64) rather than cross-built from
-  one machine.
 - **The "Start on boot" setting never lets the app self-elevate.** It's
   purely a stored preference; actually changing systemd's enabled state is
   a separate, explicit `internet-monitor service enable-boot` command that
   shells out to `sudo systemctl` and will prompt for a password
   interactively. The API/dashboard process itself never gains, requests,
   or needs elevated privileges to do this.
-- **`.deb` fetches dependencies from PyPI at install time** rather than
-  vendoring wheels, keeping the package itself small and simple
-  (`Architecture: all`) at the cost of requiring network access during
-  `apt install`. For a fully offline install, use the AppImage (which
-  vendors dependencies at *build* time) or `pip download` the
-  requirements yourself ahead of time.
+- **`scripts/install.sh` fetches dependencies from PyPI at install time**
+  rather than vendoring wheels, keeping the repo itself small and simple
+  at the cost of requiring network access during install. For a fully
+  offline install, `pip download` the requirements yourself ahead of
+  time and point `pip install` at that local cache instead.
 - **macOS SSID detection has two fallback layers.** `networksetup
   -getairportnetwork` is tried first (fast), but Apple disabled it from
   returning a real SSID at all starting with macOS 15/Sequoia (a

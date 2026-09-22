@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Internet Monitor
-Comment=Monitor internet latency, packet loss, jitter, and connectivity
-Exec=AppRun
-Icon=internet-monitor
-Categories=Network;Utility;
-Terminal=false
-StartupNotify=false
