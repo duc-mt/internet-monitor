@@ -87,11 +87,14 @@ async def delete_target(conn: aiosqlite.Connection, target_id: int) -> bool:
 async def seed_default_targets(conn: aiosqlite.Connection) -> None:
     """Populate the classic three defaults the first time the app runs."""
     existing = await list_targets(conn)
-    if existing:
-        return
-    
     wan_ip = await network_info.get_wan_ip() or "127.0.0.1"
-    
+
+    if existing:
+        # Check if WAN target is missing and add it for backward compatibility
+        if not any(t.name == "WAN" for t in existing):
+            await create_target(conn, TargetCreate(name="WAN", host=wan_ip, protocol="icmp", interval_seconds=5))
+        return
+
     defaults = [
         TargetCreate(name="Gateway", host=await _detect_gateway(), protocol="icmp",
                      is_gateway=True, interval_seconds=5),
