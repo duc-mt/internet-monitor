@@ -42,12 +42,21 @@ class SpeedtestResult:
 
 
 def _blocking_download(size_bytes: int, timeout: float) -> SpeedtestResult:
-    start = time.monotonic()
+    try:
+        start = time.monotonic()
+        resp = requests.get(_TEST_URL, params={"bytes": size_bytes}, stream=True, timeout=timeout)
+    except requests.exceptions.SSLError:
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        start = time.monotonic()
+        resp = requests.get(_TEST_URL, params={"bytes": size_bytes}, stream=True, timeout=timeout, verify=False)
+
     downloaded = 0
-    with requests.get(_TEST_URL, params={"bytes": size_bytes}, stream=True, timeout=timeout) as resp:
+    with resp:
         resp.raise_for_status()
         for chunk in resp.iter_content(chunk_size=65536):
             downloaded += len(chunk)
+
     elapsed = max(time.monotonic() - start, 0.001)
     mbps = (downloaded * 8 / 1_000_000) / elapsed
     return SpeedtestResult(
