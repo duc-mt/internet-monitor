@@ -40,9 +40,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ScriptDir  = $PSScriptRoot
-$BackendDir = Join-Path $ScriptDir "backend"
+$ProjectRoot = Join-Path $ScriptDir ".."
+$BackendDir = Join-Path $ProjectRoot "backend"
 $SafeName   = ($SiteName -replace '[ /\\]', '-')
-$DataDir    = Join-Path (Join-Path $ScriptDir "tmp") $SafeName
+$DataDir    = Join-Path (Join-Path $ProjectRoot "tmp") $SafeName
 $Port       = if ($env:INTERNET_MONITOR_PORT) { $env:INTERNET_MONITOR_PORT } else { "8765" }
 
 $PythonExe = Join-Path $BackendDir ".venv\Scripts\python.exe"

@@ -110,10 +110,13 @@ async def test_detect_gateway_on_windows_falls_back_when_undetectable(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_seed_default_targets_only_runs_once(db):
+async def test_seed_default_targets_only_runs_once(db, monkeypatch):
+    async def fake_wan_ip():
+        return "203.0.113.1"
+    monkeypatch.setattr(network_info, "get_wan_ip", fake_wan_ip)
     await targets_repo.seed_default_targets(db)
     first_count = len(await targets_repo.list_targets(db))
-    assert first_count == 3
+    assert first_count == 4
 
     await targets_repo.seed_default_targets(db)
     assert len(await targets_repo.list_targets(db)) == first_count
