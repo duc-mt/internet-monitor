@@ -154,3 +154,58 @@ async def delete_older_than(conn: aiosqlite.Connection, retention_days: int) -> 
     async with write_transaction() as tx:
         cursor = await tx.execute("DELETE FROM measurements WHERE timestamp < ?", (cutoff,))
     return cursor.rowcount
+
+
+async def downsample_older_than(conn: aiosqlite.Connection, days_old: int = 7) -> int:
+    """
+    Downsamples measurements older than `days_old` into 1-hour buckets to save space.
+    Leaves data newer than `days_old` at high resolution (e.g. 5 seconds).
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days_old)).isoformat()
+    
+    query = """
+        SELECT
+            target_id,
+            strftime('%Y-%m-%dT%H:00:00Z', timestamp) AS hour_bucket,
+            AVG(latency_ms) AS latency_ms,
+            AVG(packet_loss) AS packet_loss,
+            AVG(jitter_ms) AS jitter_ms,
+            MAX(success) AS success,
+            MAX(network_name) AS network_name
+        FROM measurements
+        WHERE timestamp < ?
+        GROUP BY target_id, hour_bucket
+        HAVING COUNT(*) > 1
+    """
+    
+    async with write_transaction() as tx:
+        async with tx.execute(query, (cutoff,)) as cursor:
+            rows = await cursor.fetchall()
+            
+        if not rows:
+            return 0
+            
+        # Delete the fine-grained rows that we are about to replace
+        await tx.execute("DELETE FROM measurements WHERE timestamp < ?", (cutoff,))
+        
+        # Insert the downsampled hourly rows
+        insert_query = """
+            INSERT INTO measurements (target_id, timestamp, latency_ms, packet_loss, jitter_ms, success, error, network_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        insert_data = [
+            (
+                row["target_id"],
+                row["hour_bucket"],
+                row["latency_ms"],
+                row["packet_loss"],
+                row["jitter_ms"],
+                row["success"],
+                "Downsampled", # indicate this is an aggregated row
+                row["network_name"]
+            )
+            for row in rows
+        ]
+        await tx.executemany(insert_query, insert_data)
+        
+    return len(rows)
