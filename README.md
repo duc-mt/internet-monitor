@@ -113,7 +113,9 @@ physical location you're visiting), see `test-site.sh` at the project
 root — it starts the backend with an isolated, disposable dataset per
 "site name" and saves a CSV/JSON report when you stop it, which fits
 macOS's lack of a background-service option better than trying to install
-anything permanently.
+anything permanently. `test-site.ps1` (same project root) is the Windows
+equivalent, run from PowerShell — see the [Windows](#windows-cmd-or-powershell)
+quick-start section below for the execution-policy note it needs.
 
 A native macOS port (a `launchd` background service instead of
 `test-site.sh`, a `.pkg` installer) is possible but hasn't been built — the
