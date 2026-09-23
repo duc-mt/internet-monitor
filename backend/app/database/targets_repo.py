@@ -89,11 +89,15 @@ async def seed_default_targets(conn: aiosqlite.Connection) -> None:
     existing = await list_targets(conn)
     if existing:
         return
+    
+    wan_ip = await network_info.get_wan_ip() or "127.0.0.1"
+    
     defaults = [
         TargetCreate(name="Gateway", host=await _detect_gateway(), protocol="icmp",
                      is_gateway=True, interval_seconds=5),
-        TargetCreate(name="Cloudflare DNS", host="1.1.1.1", protocol="icmp", interval_seconds=5),
+        TargetCreate(name="WAN", host=wan_ip, protocol="icmp", interval_seconds=5),
         TargetCreate(name="Google DNS", host="8.8.8.8", protocol="icmp", interval_seconds=5),
+        TargetCreate(name="Cloudflare DNS", host="1.1.1.1", protocol="icmp", interval_seconds=5),
     ]
     for target in defaults:
         await create_target(conn, target)

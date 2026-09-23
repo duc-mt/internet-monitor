@@ -242,6 +242,7 @@ async def test_windows_default_gateway_none_when_unparseable(monkeypatch):
 @pytest.mark.asyncio
 async def test_windows_network_name_returns_ssid_when_connected(monkeypatch):
     monkeypatch.setattr(network_info, "_IS_WINDOWS", True)
+    monkeypatch.setattr(network_info, "_IS_MACOS", False)
     monkeypatch.setattr(network_info, "_run", _fake_run({"netsh": WINDOWS_WLAN_CONNECTED_OUTPUT}))
     name = await network_info.get_network_name(force=True)
     assert name == "OfficeWiFi"
@@ -258,6 +259,7 @@ async def test_windows_network_name_does_not_match_bssid(monkeypatch):
 @pytest.mark.asyncio
 async def test_windows_network_name_falls_back_to_wired_when_disconnected(monkeypatch):
     monkeypatch.setattr(network_info, "_IS_WINDOWS", True)
+    monkeypatch.setattr(network_info, "_IS_MACOS", False)
 
     async def fake_run(*args: str, timeout: float = 3.0) -> str:
         if args[0] == "netsh":
@@ -274,6 +276,7 @@ async def test_windows_network_name_falls_back_to_wired_when_disconnected(monkey
 @pytest.mark.asyncio
 async def test_windows_network_name_none_when_nothing_detected(monkeypatch):
     monkeypatch.setattr(network_info, "_IS_WINDOWS", True)
+    monkeypatch.setattr(network_info, "_IS_MACOS", False)
     monkeypatch.setattr(network_info, "_run", _fake_run({}))
     name = await network_info.get_network_name(force=True)
     assert name is None

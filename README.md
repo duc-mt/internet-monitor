@@ -109,11 +109,11 @@ What does **not** work on macOS, and hasn't been ported:
   design.
 
 For ad-hoc testing on macOS (e.g. checking connectivity quality at a
-physical location you're visiting), see `test-site.sh` at the project
-root — it starts the backend with an isolated, disposable dataset per
+physical location you're visiting), see `test-scripts/test-site.sh` —
+it starts the backend with an isolated, disposable dataset per
 "site name" and saves a CSV/JSON report when you stop it, which fits
 macOS's lack of a background-service option better than trying to install
-anything permanently. `test-site.ps1` (same project root) is the Windows
+anything permanently. `test-scripts/test-site.ps1` is the Windows
 equivalent, run from PowerShell — see the [Windows](#windows-cmd-or-powershell)
 quick-start section below for the execution-policy note it needs.
 
@@ -311,8 +311,8 @@ current values. An example is below:
 
 **Targets** (which hosts are monitored) are managed separately via the
 Targets page, the `/api/targets` endpoints, or `internet-monitor targets`.
-Three defaults are seeded on first run: your detected gateway, Cloudflare
-DNS (`1.1.1.1`), and Google DNS (`8.8.8.8`).
+Four defaults are seeded on first run: your detected gateway, your WAN IP
+(detected automatically), Google DNS (`8.8.8.8`), and Cloudflare DNS (`1.1.1.1`).
 
 **Start on boot**: the dashboard's toggle only records a preference — the
 app never grants itself permission to change systemd state. Actually

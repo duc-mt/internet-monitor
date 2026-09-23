@@ -25,6 +25,7 @@ import logging
 import re
 import sys
 import time
+import urllib.request
 from typing import Optional
 
 logger = logging.getLogger("internet_monitor.network_info")
@@ -219,3 +220,19 @@ async def _linux_default_route_interface() -> Optional[str]:
     output = await _run("ip", "route", "show", "default")
     m = re.search(r"\bdev\s+(\S+)", output)
     return m.group(1) if m else None
+
+
+async def get_wan_ip() -> Optional[str]:
+    """
+    Fetch the public WAN IP address using icanhazip.com.
+    Done in a thread to avoid blocking the async event loop.
+    """
+    def _fetch():
+        req = urllib.request.Request("http://ipv4.icanhazip.com", headers={'User-Agent': 'curl/7.68.0'})
+        with urllib.request.urlopen(req, timeout=5.0) as response:
+            return response.read().decode('utf-8').strip()
+    try:
+        return await asyncio.to_thread(_fetch)
+    except Exception as e:
+        logger.debug(f"Failed to detect WAN IP: {e}")
+        return None
