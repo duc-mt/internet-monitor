@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 
@@ -8,6 +9,7 @@ import aiosqlite
 from app.database import outages_repo, targets_repo
 from app.models.settings import AppSettings
 from app.services import notification_service
+from app.monitoring import network_info
 
 logger = logging.getLogger("internet_monitor.outages")
 
@@ -47,6 +49,8 @@ async def evaluate(conn: aiosqlite.Connection, settings: AppSettings) -> None:
             failed_checks=threshold,
         )
         logger.warning("Outage started (#%s): %s", outage.id, outage.reason)
+        # Feature 1: Advanced Probing (Traceroute) on outage
+        asyncio.create_task(_run_diagnostic_traceroute([t.host for t in non_gateway]))
     elif not all_down and active is not None:
         closed = await outages_repo.end_active_outage(conn)
         _duration_notified.discard(active.id)
@@ -80,3 +84,37 @@ async def measurements_recent(conn: aiosqlite.Connection, target_ids: list[int],
 def reset_state() -> None:
     """Used by tests."""
     _duration_notified.clear()
+
+
+async def _run_diagnostic_traceroute(hosts: list[str]) -> None:
+    """
+    Runs a traceroute to the first available host to diagnose where the network is dropping packets.
+    Logs the result to the backend logger.
+    """
+    if not hosts:
+        return
+    
+    host = hosts[0]  # Just trace the first failed host (e.g. 8.8.8.8)
+    logger.info(f"Running automated diagnostic traceroute to {host} due to outage...")
+    
+    import sys
+    is_windows = sys.platform == "win32"
+    
+    if is_windows:
+        args = ["tracert", "-d", "-h", "15", "-w", "1000", host]
+    else:
+        args = ["traceroute", "-n", "-m", "15", "-w", "1", host]
+        
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30.0)
+        output = stdout.decode(errors="replace").strip()
+        logger.warning(f"Diagnostic Traceroute Result for {host}:\n{output}")
+    except FileNotFoundError:
+        logger.warning("Traceroute tool not found on this system. Skipping diagnostic.")
+    except asyncio.TimeoutError:
+        logger.warning(f"Diagnostic traceroute to {host} timed out.")
+    except Exception as e:
+        logger.warning(f"Diagnostic traceroute to {host} failed: {e}")

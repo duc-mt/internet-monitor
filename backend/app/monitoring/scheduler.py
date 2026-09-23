@@ -162,6 +162,9 @@ class MonitoringManager:
             await asyncio.sleep(_INITIAL_CLEANUP_DELAY)
             while True:
                 settings = await get_settings(conn)
+                downsampled = await measurements_repo.downsample_older_than(conn, 7)
+                if downsampled:
+                    logger.info("Downsampled %d hourly buckets for old measurements", downsampled)
                 deleted = await measurements_repo.delete_older_than(conn, settings.data_retention_days)
                 if deleted:
                     logger.info("Retention cleanup removed %d measurement row(s)", deleted)
