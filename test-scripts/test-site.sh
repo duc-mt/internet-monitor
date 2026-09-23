@@ -19,10 +19,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="$SCRIPT_DIR/backend"
+BACKEND_DIR="$SCRIPT_DIR/../backend"
 SITE_NAME="${1:-site-$(date +%Y%m%d-%H%M%S)}"
 SAFE_NAME="$(echo "$SITE_NAME" | tr ' /' '--')"
-DATA_DIR="$SCRIPT_DIR/tmp/$SAFE_NAME"
+DATA_DIR="$SCRIPT_DIR/../tmp/$SAFE_NAME"
 PORT="${INTERNET_MONITOR_PORT:-8765}"
 
 if [[ ! -x "$BACKEND_DIR/.venv/bin/python" ]]; then
