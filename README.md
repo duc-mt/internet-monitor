@@ -1,5 +1,10 @@
 # Internet Monitor
 
+[![CI](https://github.com/duc-mt/internet-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/duc-mt/internet-monitor/actions/workflows/ci.yml)
+[![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 A lightweight, self-contained Linux application that continuously measures
 Internet latency, packet loss, jitter, and connectivity — with a local
 dashboard, a REST API, and a CLI. No cloud dependency: everything runs and

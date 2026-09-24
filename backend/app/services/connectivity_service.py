@@ -6,10 +6,10 @@ went-offline/came-back-online notifications; outage_service answers "has
 every external target failed for long enough that this counts as a
 recorded outage" and owns the outages table.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import aiosqlite
 
@@ -19,7 +19,7 @@ from app.services import notification_service
 
 logger = logging.getLogger("internet_monitor.connectivity")
 
-_previous_online: Optional[bool] = None
+_previous_online: bool | None = None
 
 
 async def evaluate(conn: aiosqlite.Connection, settings: AppSettings) -> bool:

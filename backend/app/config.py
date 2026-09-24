@@ -12,6 +12,7 @@ Two layers of configuration exist deliberately:
    table so they can be changed from the dashboard without restarting the
    service or touching the filesystem.
 """
+
 from __future__ import annotations
 
 import os

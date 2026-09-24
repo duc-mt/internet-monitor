@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -36,7 +36,7 @@ class TargetBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     host: str = Field(..., min_length=1, max_length=253)
     protocol: Protocol = "icmp"
-    port: Optional[int] = Field(default=None, ge=1, le=65535)
+    port: int | None = Field(default=None, ge=1, le=65535)
     is_gateway: bool = False
     enabled: bool = True
     interval_seconds: int = Field(default=5, ge=MIN_INTERVAL_SECONDS, le=3600)
@@ -55,7 +55,7 @@ class TargetBase(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def _tcp_needs_port_or_default(self) -> "TargetBase":
+    def _tcp_needs_port_or_default(self) -> TargetBase:
         # TCP checks need a port; ICMP ignores it. Rather than reject a
         # missing port for TCP targets, default to 443 (works for the vast
         # majority of reachable hosts) so the API stays forgiving.
@@ -69,17 +69,17 @@ class TargetCreate(TargetBase):
 
 
 class TargetUpdate(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    host: Optional[str] = Field(default=None, min_length=1, max_length=253)
-    protocol: Optional[Protocol] = None
-    port: Optional[int] = Field(default=None, ge=1, le=65535)
-    is_gateway: Optional[bool] = None
-    enabled: Optional[bool] = None
-    interval_seconds: Optional[int] = Field(default=None, ge=MIN_INTERVAL_SECONDS, le=3600)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    host: str | None = Field(default=None, min_length=1, max_length=253)
+    protocol: Protocol | None = None
+    port: int | None = Field(default=None, ge=1, le=65535)
+    is_gateway: bool | None = None
+    enabled: bool | None = None
+    interval_seconds: int | None = Field(default=None, ge=MIN_INTERVAL_SECONDS, le=3600)
 
     @field_validator("host")
     @classmethod
-    def _validate_host(cls, v: Optional[str]) -> Optional[str]:
+    def _validate_host(cls, v: str | None) -> str | None:
         return validate_host(v) if v is not None else v
 
 

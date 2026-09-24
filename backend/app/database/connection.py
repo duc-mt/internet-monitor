@@ -8,13 +8,14 @@ second at most) a single shared connection guarded by an asyncio.Lock for
 writes is simpler and just as fast as a connection pool, and avoids
 "database is locked" errors that a naive multi-connection setup would hit.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
 
 import aiosqlite
 

@@ -9,7 +9,6 @@ import aiosqlite
 from app.database import outages_repo, targets_repo
 from app.models.settings import AppSettings
 from app.services import notification_service
-from app.monitoring import network_info
 
 logger = logging.getLogger("internet_monitor.outages")
 
@@ -36,10 +35,7 @@ async def evaluate(conn: aiosqlite.Connection, settings: AppSettings) -> None:
         return
 
     recent = await measurements_recent(conn, [t.id for t in non_gateway], threshold)
-    all_down = all(
-        len(recent.get(t.id, [])) >= threshold and not any(recent[t.id][:threshold])
-        for t in non_gateway
-    )
+    all_down = all(len(recent.get(t.id, [])) >= threshold and not any(recent[t.id][:threshold]) for t in non_gateway)
 
     if all_down and active is None:
         outage = await outages_repo.start_outage(
@@ -78,6 +74,7 @@ async def evaluate(conn: aiosqlite.Connection, settings: AppSettings) -> None:
 
 async def measurements_recent(conn: aiosqlite.Connection, target_ids: list[int], count: int) -> dict[int, list[bool]]:
     from app.database import measurements_repo
+
     return await measurements_repo.recent_results_for_targets(conn, target_ids, count)
 
 
@@ -93,18 +90,19 @@ async def _run_diagnostic_traceroute(hosts: list[str]) -> None:
     """
     if not hosts:
         return
-    
+
     host = hosts[0]  # Just trace the first failed host (e.g. 8.8.8.8)
     logger.info(f"Running automated diagnostic traceroute to {host} due to outage...")
-    
+
     import sys
+
     is_windows = sys.platform == "win32"
-    
+
     if is_windows:
         args = ["tracert", "-d", "-h", "15", "-w", "1000", host]
     else:
         args = ["traceroute", "-n", "-m", "15", "-w", "1", host]
-        
+
     try:
         proc = await asyncio.create_subprocess_exec(
             *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT

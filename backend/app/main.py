@@ -10,7 +10,16 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import (
-    export, health, measurements, monitoring, outages, settings, speedtest, statistics, status, targets,
+    export,
+    health,
+    measurements,
+    monitoring,
+    outages,
+    settings,
+    speedtest,
+    statistics,
+    status,
+    targets,
 )
 from app.config import DEV_CORS_ORIGINS, FRONTEND_DIST_DIR
 from app.database.connection import close_db, init_db
@@ -53,8 +62,15 @@ app.add_middleware(
 )
 
 for router in (
-    health.router, status.router, targets.router, measurements.router,
-    statistics.router, outages.router, settings.router, monitoring.router, export.router,
+    health.router,
+    status.router,
+    targets.router,
+    measurements.router,
+    statistics.router,
+    outages.router,
+    settings.router,
+    monitoring.router,
+    export.router,
     speedtest.router,
 ):
     app.include_router(router)
@@ -71,6 +87,7 @@ if FRONTEND_DIST_DIR.is_dir():
             return FileResponse(candidate)
         return FileResponse(FRONTEND_DIST_DIR / "index.html")
 else:
+
     @app.get("/", include_in_schema=False)
     async def frontend_not_built():
         return {

@@ -1,0 +1,26 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "E741",   # ambiguous variable name
+    "UP017",  # datetime.UTC alias (keep timezone.utc for Python 3.10 compatibility)
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["backend/tests", "cli/tests"]
+pythonpath = ["backend", "cli"]
+
+[tool.coverage.run]
+source = ["backend/app", "cli/internet_monitor_cli"]

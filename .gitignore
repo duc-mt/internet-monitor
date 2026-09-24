@@ -1,11 +1,24 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .venv/
+venv/
 *.egg-info/
+dist/
+build/
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# Environment
+.env
+.env.*
+!.env.example
 
 # Node / frontend
 node_modules/

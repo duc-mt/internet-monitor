@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Optional
 
 import aiosqlite
 from fastapi import APIRouter, Depends
@@ -17,17 +16,41 @@ router = APIRouter(prefix="/api/export", tags=["export"])
 
 @router.get("/measurements.csv")
 async def export_measurements_csv(
-    target_id: Optional[int] = None,
-    start: Optional[str] = None,
-    end: Optional[str] = None,
+    target_id: int | None = None,
+    start: str | None = None,
+    end: str | None = None,
     db: aiosqlite.Connection = Depends(get_db),
 ):
     rows = await measurements_repo.list_measurements(db, target_id=target_id, start=start, end=end, limit=100000)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["timestamp", "target_id", "target_name", "latency_ms", "packet_loss", "jitter_ms", "success", "error", "network_name"])
+    writer.writerow(
+        [
+            "timestamp",
+            "target_id",
+            "target_name",
+            "latency_ms",
+            "packet_loss",
+            "jitter_ms",
+            "success",
+            "error",
+            "network_name",
+        ]
+    )
     for r in rows:
-        writer.writerow([r.timestamp, r.target_id, r.target_name, r.latency_ms, r.packet_loss, r.jitter_ms, r.success, r.error or "", r.network_name or ""])
+        writer.writerow(
+            [
+                r.timestamp,
+                r.target_id,
+                r.target_name,
+                r.latency_ms,
+                r.packet_loss,
+                r.jitter_ms,
+                r.success,
+                r.error or "",
+                r.network_name or "",
+            ]
+        )
     buffer.seek(0)
     return StreamingResponse(
         iter([buffer.getvalue()]),
@@ -38,14 +61,18 @@ async def export_measurements_csv(
 
 @router.get("/report.json")
 async def export_report_json(
-    range: str = "24h",
-    start: Optional[str] = None,
-    end: Optional[str] = None,
-    target_id: Optional[int] = None,
+    range: statistics_service.RangeName = "24h",
+    start: str | None = None,
+    end: str | None = None,
+    target_id: int | None = None,
     db: aiosqlite.Connection = Depends(get_db),
 ):
     stats = await statistics_service.compute_statistics(
-        db, range_name=range, start=start, end=end, target_id=target_id  # type: ignore[arg-type]
+        db,
+        range_name=range,
+        start=start,
+        end=end,
+        target_id=target_id,  # type: ignore[arg-type]
     )
     outages = await outages_repo.list_outages(db, start=stats.range_start, end=stats.range_end)
     report = {
@@ -54,6 +81,7 @@ async def export_report_json(
     }
     buffer = io.StringIO()
     import json
+
     json.dump(report, buffer, indent=2)
     buffer.seek(0)
     return StreamingResponse(

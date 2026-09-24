@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import statistics as pystats
 from datetime import datetime, timedelta, timezone
-from typing import Literal, Optional
+from typing import Literal
 
 import aiosqlite
 
@@ -19,9 +19,7 @@ _RANGE_DELTAS = {
 }
 
 
-def resolve_range(
-    range_name: RangeName, start: Optional[str], end: Optional[str]
-) -> tuple[datetime, datetime]:
+def resolve_range(range_name: RangeName, start: str | None, end: str | None) -> tuple[datetime, datetime]:
     now = datetime.now(timezone.utc)
     if range_name == "custom":
         if not start or not end:
@@ -56,9 +54,9 @@ async def compute_statistics(
     conn: aiosqlite.Connection,
     *,
     range_name: RangeName,
-    start: Optional[str] = None,
-    end: Optional[str] = None,
-    target_id: Optional[int] = None,
+    start: str | None = None,
+    end: str | None = None,
+    target_id: int | None = None,
 ) -> StatisticsResponse:
     range_start, range_end = resolve_range(range_name, start, end)
     start_iso, end_iso = range_start.isoformat(), range_end.isoformat()
@@ -89,8 +87,7 @@ async def compute_statistics(
     # sides of the ratio, same as it's excluded from the outage log.
     effective_seconds = max(0.0, duration_seconds - sleep_seconds)
     uptime_pct = (
-        round(max(0.0, 100 * (1 - real_downtime_seconds / effective_seconds)), 2)
-        if effective_seconds > 0 else None
+        round(max(0.0, 100 * (1 - real_downtime_seconds / effective_seconds)), 2) if effective_seconds > 0 else None
     )
 
     return StatisticsResponse(

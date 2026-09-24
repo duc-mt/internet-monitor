@@ -18,6 +18,7 @@ Two strategies, matching the brief:
 Both return a PingBatchResult so the rest of the app never needs to know
 which strategy produced a given measurement.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +30,6 @@ import socket
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger("internet_monitor.pinger")
 
@@ -67,7 +67,7 @@ class PingBatchResult:
     attempted: int
     succeeded: int
     latencies: list[float] = field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
     def loss_pct(self) -> float:
@@ -76,13 +76,13 @@ class PingBatchResult:
         return round((self.attempted - self.succeeded) / self.attempted * 100, 2)
 
     @property
-    def avg_latency_ms(self) -> Optional[float]:
+    def avg_latency_ms(self) -> float | None:
         if not self.latencies:
             return None
         return round(sum(self.latencies) / len(self.latencies), 2)
 
     @property
-    def jitter_ms(self) -> Optional[float]:
+    def jitter_ms(self) -> float | None:
         return compute_jitter(self.latencies)
 
     @property
@@ -90,7 +90,7 @@ class PingBatchResult:
         return self.succeeded > 0
 
 
-def compute_jitter(latencies: list[float]) -> Optional[float]:
+def compute_jitter(latencies: list[float]) -> float | None:
     """Mean absolute difference between consecutive samples (RFC-3550-style,
     simplified for a small per-check batch rather than a running average)."""
     if len(latencies) < 2:
@@ -114,8 +114,7 @@ def mark_icmp_unavailable() -> None:
     global _icmp_unavailable
     if not _icmp_unavailable:
         logger.warning(
-            "ICMP pings are not available in this environment; "
-            "falling back to TCP checks for ICMP-configured targets."
+            "ICMP pings are not available in this environment; falling back to TCP checks for ICMP-configured targets."
         )
     _icmp_unavailable = True
 
@@ -186,13 +185,16 @@ async def check_icmp(host: str, count: int, timeout: float) -> PingBatchResult:
     if succeeded == 0:
         error = _classify_failure_windows(combined) if _IS_WINDOWS else _classify_failure(combined)
 
-    return PingBatchResult(method="icmp", attempted=attempted, succeeded=succeeded,
-                            latencies=latencies, error=error)
+    return PingBatchResult(method="icmp", attempted=attempted, succeeded=succeeded, latencies=latencies, error=error)
 
 
 def _classify_failure(combined: str) -> str:
     lowered = combined.lower()
-    if "unknown host" in lowered or "name or service not known" in lowered or "temporary failure in name resolution" in lowered:
+    if (
+        "unknown host" in lowered
+        or "name or service not known" in lowered
+        or "temporary failure in name resolution" in lowered
+    ):
         return "DNS resolution failed"
     if "network is unreachable" in lowered:
         return "network unreachable"
@@ -227,16 +229,14 @@ def _classify_failure_windows(combined: str) -> str:
 async def check_tcp(host: str, port: int, count: int, timeout: float) -> PingBatchResult:
     latencies: list[float] = []
     attempted = 0
-    last_error: Optional[str] = None
+    last_error: str | None = None
 
     for _ in range(count):
         attempted += 1
         start = time.monotonic()
         writer = None
         try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=timeout
-            )
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=timeout)
             elapsed_ms = (time.monotonic() - start) * 1000
             latencies.append(round(elapsed_ms, 2))
         except asyncio.TimeoutError:
@@ -256,8 +256,11 @@ async def check_tcp(host: str, port: int, count: int, timeout: float) -> PingBat
 
     succeeded = len(latencies)
     return PingBatchResult(
-        method="tcp", attempted=attempted, succeeded=succeeded,
-        latencies=latencies, error=last_error if succeeded == 0 else None,
+        method="tcp",
+        attempted=attempted,
+        succeeded=succeeded,
+        latencies=latencies,
+        error=last_error if succeeded == 0 else None,
     )
 
 
@@ -273,7 +276,7 @@ def _classify_os_error(exc: OSError) -> str:
     return str(exc)[:200]
 
 
-async def run_check(*, host: str, protocol: str, port: Optional[int], count: int, timeout: float) -> PingBatchResult:
+async def run_check(*, host: str, protocol: str, port: int | None, count: int, timeout: float) -> PingBatchResult:
     """Entry point used by the scheduler: picks ICMP or TCP and falls back
     to TCP automatically if ICMP turns out to be unusable."""
     if protocol == "icmp":

@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from app.database import targets_repo
 from app.database.measurements_repo import insert_measurement
 from app.models.measurement import MeasurementCreate
@@ -51,19 +50,30 @@ async def test_compute_statistics_end_to_end(db):
 
     samples = [10.0, 20.0, 30.0, 40.0, 50.0]
     for i, latency in enumerate(samples):
-        await insert_measurement(db, MeasurementCreate(
-            target_id=target.id,
-            timestamp=(now - timedelta(minutes=len(samples) - i)).isoformat(),
-            latency_ms=latency,
-            packet_loss=0.0,
-            jitter_ms=1.0,
-            success=True,
-        ))
+        await insert_measurement(
+            db,
+            MeasurementCreate(
+                target_id=target.id,
+                timestamp=(now - timedelta(minutes=len(samples) - i)).isoformat(),
+                latency_ms=latency,
+                packet_loss=0.0,
+                jitter_ms=1.0,
+                success=True,
+            ),
+        )
     # one failed check
-    await insert_measurement(db, MeasurementCreate(
-        target_id=target.id, timestamp=now.isoformat(),
-        latency_ms=None, packet_loss=100.0, jitter_ms=None, success=False, error="timeout",
-    ))
+    await insert_measurement(
+        db,
+        MeasurementCreate(
+            target_id=target.id,
+            timestamp=now.isoformat(),
+            latency_ms=None,
+            packet_loss=100.0,
+            jitter_ms=None,
+            success=False,
+            error="timeout",
+        ),
+    )
 
     stats = await statistics_service.compute_statistics(db, range_name="1h", target_id=target.id)
     assert stats.sample_count == 6
@@ -86,9 +96,17 @@ async def test_uptime_pct_is_100_with_no_outages(db):
     now = datetime.now(timezone.utc)
     start = now - timedelta(seconds=500)
     for ts in (start, now):
-        await insert_measurement(db, MeasurementCreate(
-            target_id=target.id, timestamp=ts.isoformat(), latency_ms=10.0, packet_loss=0.0, jitter_ms=1.0, success=True,
-        ))
+        await insert_measurement(
+            db,
+            MeasurementCreate(
+                target_id=target.id,
+                timestamp=ts.isoformat(),
+                latency_ms=10.0,
+                packet_loss=0.0,
+                jitter_ms=1.0,
+                success=True,
+            ),
+        )
 
     stats = await statistics_service.compute_statistics(db, range_name="1h", target_id=target.id)
     assert stats.uptime_pct == 100.0
@@ -100,9 +118,17 @@ async def test_uptime_pct_counts_real_outage_but_not_sleep_gap(db):
     now = datetime.now(timezone.utc)
     start = now - timedelta(seconds=1000)
     for ts in (start, now):
-        await insert_measurement(db, MeasurementCreate(
-            target_id=target.id, timestamp=ts.isoformat(), latency_ms=10.0, packet_loss=0.0, jitter_ms=1.0, success=True,
-        ))
+        await insert_measurement(
+            db,
+            MeasurementCreate(
+                target_id=target.id,
+                timestamp=ts.isoformat(),
+                latency_ms=10.0,
+                packet_loss=0.0,
+                jitter_ms=1.0,
+                success=True,
+            ),
+        )
 
     # A real outage: 100s of genuine downtime.
     outage_start = start + timedelta(seconds=200)

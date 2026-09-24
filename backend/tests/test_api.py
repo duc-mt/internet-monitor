@@ -15,9 +15,16 @@ def test_default_targets_seeded_on_startup(client):
 
 
 def test_create_list_update_delete_target(client):
-    create_resp = client.post("/api/targets", json={
-        "name": "Custom Host", "host": "example.com", "protocol": "tcp", "port": 443, "interval_seconds": 10,
-    })
+    create_resp = client.post(
+        "/api/targets",
+        json={
+            "name": "Custom Host",
+            "host": "example.com",
+            "protocol": "tcp",
+            "port": 443,
+            "interval_seconds": 10,
+        },
+    )
     assert create_resp.status_code == 201
     target = create_resp.json()
     assert target["name"] == "Custom Host"
@@ -61,8 +68,14 @@ def test_status_endpoint_shape(client):
     assert resp.status_code == 200
     body = resp.json()
     for key in (
-        "online", "quality", "targets_reachable", "targets_total", "targets", "monitoring_running",
-        "network_name", "uptime_pct_24h",
+        "online",
+        "quality",
+        "targets_reachable",
+        "targets_total",
+        "targets",
+        "monitoring_running",
+        "network_name",
+        "uptime_pct_24h",
     ):
         assert key in body
 
@@ -131,6 +144,7 @@ def test_speedtest_endpoint(client, monkeypatch):
         return SpeedtestResult(download_mbps=87.5, bytes_downloaded=10_000_000, elapsed_seconds=0.9, server="test")
 
     import app.api.speedtest as speedtest_module
+
     monkeypatch.setattr(speedtest_module, "run_speedtest", fake_run_speedtest)
 
     resp = client.post("/api/speedtest")
@@ -145,6 +159,7 @@ def test_speedtest_endpoint_surfaces_failure_as_502(client, monkeypatch):
         raise RuntimeError("connection reset")
 
     import app.api.speedtest as speedtest_module
+
     monkeypatch.setattr(speedtest_module, "run_speedtest", fake_run_speedtest)
 
     resp = client.post("/api/speedtest")

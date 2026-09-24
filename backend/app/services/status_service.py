@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 import aiosqlite
 
@@ -13,7 +12,7 @@ from app.services.settings_service import get_settings
 
 
 async def compute_status(
-    conn: aiosqlite.Connection, *, monitoring_started_at: Optional[datetime], monitoring_running: bool
+    conn: aiosqlite.Connection, *, monitoring_started_at: datetime | None, monitoring_running: bool
 ) -> StatusResponse:
     settings = await get_settings(conn)
     targets = await targets_repo.list_targets(conn, enabled_only=True)
@@ -31,13 +30,17 @@ async def compute_status(
         reachable = bool(m and m.success)
         if reachable:
             reachable_count += 1
-        target_statuses.append(TargetStatus(
-            target_id=t.id, name=t.name, host=t.host,
-            reachable=reachable,
-            latency_ms=m.latency_ms if m else None,
-            packet_loss=m.packet_loss if m else None,
-            last_checked=m.timestamp if m else None,
-        ))
+        target_statuses.append(
+            TargetStatus(
+                target_id=t.id,
+                name=t.name,
+                host=t.host,
+                reachable=reachable,
+                latency_ms=m.latency_ms if m else None,
+                packet_loss=m.packet_loss if m else None,
+                last_checked=m.timestamp if m else None,
+            )
+        )
         if not t.is_gateway and m is not None:
             if m.latency_ms is not None:
                 headline_latencies.append(m.latency_ms)
@@ -52,8 +55,10 @@ async def compute_status(
     jitter_values = [m.jitter_ms for m in latest_by_target.values() if m.jitter_ms is not None]
     avg_jitter = round(sum(jitter_values) / len(jitter_values), 2) if jitter_values else None
 
-    quality = "offline" if (have_any_measurement and not online) else quality_service.classify(
-        avg_latency, avg_loss, settings.classification
+    quality = (
+        "offline"
+        if (have_any_measurement and not online)
+        else quality_service.classify(avg_latency, avg_loss, settings.classification)
     )
 
     uptime = 0.0

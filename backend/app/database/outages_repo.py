@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Optional
 
 import aiosqlite
 
@@ -23,10 +22,8 @@ def _row_to_outage(row: aiosqlite.Row) -> OutageOut:
     )
 
 
-async def get_active_outage(conn: aiosqlite.Connection) -> Optional[OutageOut]:
-    async with conn.execute(
-        "SELECT * FROM outages WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1"
-    ) as cursor:
+async def get_active_outage(conn: aiosqlite.Connection) -> OutageOut | None:
+    async with conn.execute("SELECT * FROM outages WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1") as cursor:
         row = await cursor.fetchone()
     return _row_to_outage(row) if row else None
 
@@ -46,6 +43,8 @@ async def start_outage(
         outage_id = cursor.lastrowid
     async with conn.execute("SELECT * FROM outages WHERE id = ?", (outage_id,)) as cursor:
         row = await cursor.fetchone()
+    if row is None:
+        raise RuntimeError("Failed to retrieve created outage")
     return _row_to_outage(row)
 
 
@@ -72,10 +71,12 @@ async def insert_sleep_gap(conn: aiosqlite.Connection, *, started_at: datetime, 
         outage_id = cursor.lastrowid
     async with conn.execute("SELECT * FROM outages WHERE id = ?", (outage_id,)) as cursor:
         row = await cursor.fetchone()
+    if row is None:
+        raise RuntimeError("Failed to retrieve sleep gap outage")
     return _row_to_outage(row)
 
 
-async def end_active_outage(conn: aiosqlite.Connection) -> Optional[OutageOut]:
+async def end_active_outage(conn: aiosqlite.Connection) -> OutageOut | None:
     active = await get_active_outage(conn)
     if active is None:
         return None
@@ -89,11 +90,11 @@ async def end_active_outage(conn: aiosqlite.Connection) -> Optional[OutageOut]:
         )
     async with conn.execute("SELECT * FROM outages WHERE id = ?", (active.id,)) as cursor:
         row = await cursor.fetchone()
-    return _row_to_outage(row)
+    return _row_to_outage(row) if row else None
 
 
 async def list_outages(
-    conn: aiosqlite.Connection, *, start: Optional[str] = None, end: Optional[str] = None, limit: int = 200
+    conn: aiosqlite.Connection, *, start: str | None = None, end: str | None = None, limit: int = 200
 ) -> list[OutageOut]:
     query = "SELECT * FROM outages WHERE 1=1"
     params: list = []
@@ -121,7 +122,9 @@ async def downtime_and_sleep_seconds_in_range(
     before `start` or is still active past `end` is only counted for the
     portion that actually falls inside the window.
     """
-    query = "SELECT started_at, ended_at, reason FROM outages WHERE started_at < ? AND (ended_at IS NULL OR ended_at > ?)"
+    query = (
+        "SELECT started_at, ended_at, reason FROM outages WHERE started_at < ? AND (ended_at IS NULL OR ended_at > ?)"
+    )
     async with conn.execute(query, (end, start)) as cursor:
         rows = await cursor.fetchall()
 

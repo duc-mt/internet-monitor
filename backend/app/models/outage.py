@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
 from pydantic import BaseModel
 
 
 class OutageOut(BaseModel):
     id: int
     started_at: str
-    ended_at: Optional[str]
-    duration_seconds: Optional[float]
-    reason: Optional[str]
-    affected_targets: List[str]
+    ended_at: str | None
+    duration_seconds: float | None
+    reason: str | None
+    affected_targets: list[str]
     failed_checks: int
     is_active: bool
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from app.monitoring import pinger
 
 SUCCESS_OUTPUT = """PING 1.1.1.1 (1.1.1.1) 56(84) bytes of data.
@@ -62,8 +61,7 @@ Ping statistics for 10.0.0.99:
 """
 
 WINDOWS_DNS_FAILURE_OUTPUT = (
-    "Ping request could not find host badhostname.invalid. "
-    "Please check the name and try again.\n"
+    "Ping request could not find host badhostname.invalid. Please check the name and try again.\n"
 )
 
 WINDOWS_SUBMS_OUTPUT = """Pinging 1.1.1.1 with 32 bytes of data:

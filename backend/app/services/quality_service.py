@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from app.models.settings import ClassificationThresholds
 from app.models.status import Quality
 
 
-def classify(
-    latency_ms: Optional[float], packet_loss_pct: Optional[float], thresholds: ClassificationThresholds
-) -> Quality:
+def classify(latency_ms: float | None, packet_loss_pct: float | None, thresholds: ClassificationThresholds) -> Quality:
     # Caller is responsible for reporting "offline" based on overall
     # reachability; this function only classifies quality when we have an
     # actual latency reading to classify.

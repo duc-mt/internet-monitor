@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from app.database import measurements_repo, outages_repo, targets_repo
 from app.models.measurement import MeasurementCreate
 from app.models.settings import AppSettings
@@ -12,12 +11,17 @@ from app.services import notification_service, outage_service
 
 
 async def _record(db, target_id: int, success: bool, when: datetime):
-    await measurements_repo.insert_measurement(db, MeasurementCreate(
-        target_id=target_id, timestamp=when.isoformat(),
-        latency_ms=10.0 if success else None,
-        packet_loss=0.0 if success else 100.0,
-        jitter_ms=None, success=success,
-    ))
+    await measurements_repo.insert_measurement(
+        db,
+        MeasurementCreate(
+            target_id=target_id,
+            timestamp=when.isoformat(),
+            latency_ms=10.0 if success else None,
+            packet_loss=0.0 if success else 100.0,
+            jitter_ms=None,
+            success=success,
+        ),
+    )
 
 
 @pytest.mark.asyncio
