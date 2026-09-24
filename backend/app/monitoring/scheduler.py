@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 import aiosqlite
 
@@ -14,7 +13,12 @@ from app.models.settings import AppSettings
 from app.models.target import TargetOut
 from app.monitoring import network_info
 from app.monitoring.pinger import PingBatchResult, run_check
-from app.services import connectivity_service, notification_service, outage_service, sleep_service
+from app.services import (
+    connectivity_service,
+    notification_service,
+    outage_service,
+    sleep_service,
+)
 from app.services.settings_service import get_settings
 
 logger = logging.getLogger("internet_monitor.scheduler")
@@ -34,9 +38,9 @@ class MonitoringManager:
 
     def __init__(self) -> None:
         self._tasks: dict[int, asyncio.Task] = {}
-        self._cleanup_task: Optional[asyncio.Task] = None
+        self._cleanup_task: asyncio.Task | None = None
         self._running = False
-        self._started_at: Optional[datetime] = None
+        self._started_at: datetime | None = None
         self._start_stop_lock = asyncio.Lock()
         self._eval_lock = asyncio.Lock()
 
@@ -45,7 +49,7 @@ class MonitoringManager:
         return self._running
 
     @property
-    def started_at(self) -> Optional[datetime]:
+    def started_at(self) -> datetime | None:
         return self._started_at
 
     async def start(self, conn: aiosqlite.Connection) -> None:
@@ -97,22 +101,28 @@ class MonitoringManager:
             try:
                 settings = await get_settings(conn)
                 result = await run_check(
-                    host=current.host, protocol=current.protocol, port=current.port,
-                    count=settings.pings_per_check, timeout=settings.ping_timeout_seconds,
+                    host=current.host,
+                    protocol=current.protocol,
+                    port=current.port,
+                    count=settings.pings_per_check,
+                    timeout=settings.ping_timeout_seconds,
                 )
                 # Cached (see network_info._CACHE_TTL) - this does not spawn
                 # a fresh subprocess on every single check.
                 network_name = await network_info.get_network_name()
-                await measurements_repo.insert_measurement(conn, MeasurementCreate(
-                    target_id=current.id,
-                    timestamp=datetime.now(timezone.utc).isoformat(),
-                    latency_ms=result.avg_latency_ms,
-                    packet_loss=result.loss_pct,
-                    jitter_ms=result.jitter_ms,
-                    success=result.success,
-                    error=result.error,
-                    network_name=network_name,
-                ))
+                await measurements_repo.insert_measurement(
+                    conn,
+                    MeasurementCreate(
+                        target_id=current.id,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        latency_ms=result.avg_latency_ms,
+                        packet_loss=result.loss_pct,
+                        jitter_ms=result.jitter_ms,
+                        success=result.success,
+                        error=result.error,
+                        network_name=network_name,
+                    ),
+                )
                 await self._check_thresholds(current, result, settings)
                 async with self._eval_lock:
                     # Sleep-gap check first: it only ever *records* a
@@ -136,9 +146,7 @@ class MonitoringManager:
             current = fresh
             await asyncio.sleep(max(MIN_INTERVAL_SECONDS, current.interval_seconds))
 
-    async def _check_thresholds(
-        self, target: TargetOut, result: PingBatchResult, settings: AppSettings
-    ) -> None:
+    async def _check_thresholds(self, target: TargetOut, result: PingBatchResult, settings: AppSettings) -> None:
         cooldown = settings.notifications.cooldown_seconds
         if (
             result.avg_latency_ms is not None
@@ -148,13 +156,18 @@ class MonitoringManager:
             await notification_service.send(
                 f"High latency: {target.name}",
                 f"{result.avg_latency_ms:.0f} ms (threshold {settings.latency_warning_threshold_ms:.0f} ms)",
-                key=f"latency:{target.id}", cooldown_seconds=cooldown,
+                key=f"latency:{target.id}",
+                cooldown_seconds=cooldown,
             )
-        if result.loss_pct > settings.packet_loss_warning_threshold_pct and settings.notifications.on_packet_loss_threshold:
+        if (
+            result.loss_pct > settings.packet_loss_warning_threshold_pct
+            and settings.notifications.on_packet_loss_threshold
+        ):
             await notification_service.send(
                 f"Packet loss: {target.name}",
                 f"{result.loss_pct:.0f}% loss (threshold {settings.packet_loss_warning_threshold_pct:.0f}%)",
-                key=f"loss:{target.id}", cooldown_seconds=cooldown,
+                key=f"loss:{target.id}",
+                cooldown_seconds=cooldown,
             )
 
     async def _cleanup_loop(self, conn: aiosqlite.Connection) -> None:

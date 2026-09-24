@@ -4,7 +4,6 @@ import asyncio
 import time
 
 import pytest
-
 from app.services import speedtest_service
 
 
@@ -69,10 +68,14 @@ async def test_run_speedtest_does_not_block_the_event_loop(monkeypatch):
     task keeps incrementing a counter via asyncio.sleep() *while* a
     genuinely blocking time.sleep() stands in for the download.
     """
+
     def fake_blocking_download(size_bytes, timeout):
         time.sleep(0.3)  # real, OS-level blocking sleep - not asyncio.sleep
         return speedtest_service.SpeedtestResult(
-            download_mbps=42.0, bytes_downloaded=size_bytes, elapsed_seconds=0.3, server="test",
+            download_mbps=42.0,
+            bytes_downloaded=size_bytes,
+            elapsed_seconds=0.3,
+            server="test",
         )
 
     monkeypatch.setattr(speedtest_service, "_blocking_download", fake_blocking_download)

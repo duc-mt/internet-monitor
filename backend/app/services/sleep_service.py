@@ -26,11 +26,11 @@ This must only ever be called from *one place at a time* process-wide
 since multiple concurrent target loops calling it independently would each
 detect - and each try to record - the same gap.
 """
+
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 import aiosqlite
 
@@ -38,7 +38,7 @@ from app.database import outages_repo
 
 logger = logging.getLogger("internet_monitor.sleep")
 
-_last_tick_wall: Optional[datetime] = None
+_last_tick_wall: datetime | None = None
 
 
 async def check_gap(conn: aiosqlite.Connection, threshold_seconds: float) -> None:
@@ -52,7 +52,8 @@ async def check_gap(conn: aiosqlite.Connection, threshold_seconds: float) -> Non
             logger.info(
                 "Detected a %.0fs gap since the last check (threshold %.0fs) - "
                 "recorded as system_sleep, excluded from downtime.",
-                gap_seconds, threshold_seconds,
+                gap_seconds,
+                threshold_seconds,
             )
 
     _last_tick_wall = now

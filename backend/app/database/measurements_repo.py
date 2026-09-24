@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import aiosqlite
 
@@ -32,25 +31,28 @@ async def insert_measurement(conn: aiosqlite.Connection, data: MeasurementCreate
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                data.target_id, data.timestamp, data.latency_ms,
-                data.packet_loss, data.jitter_ms, int(data.success), data.error, data.network_name,
+                data.target_id,
+                data.timestamp,
+                data.latency_ms,
+                data.packet_loss,
+                data.jitter_ms,
+                int(data.success),
+                data.error,
+                data.network_name,
             ),
         )
-    return cursor.lastrowid
+    return int(cursor.lastrowid or 0)
 
 
 async def list_measurements(
     conn: aiosqlite.Connection,
     *,
-    target_id: Optional[int] = None,
-    start: Optional[str] = None,
-    end: Optional[str] = None,
+    target_id: int | None = None,
+    start: str | None = None,
+    end: str | None = None,
     limit: int = 1000,
 ) -> list[MeasurementOut]:
-    query = (
-        "SELECT m.*, t.name FROM measurements m "
-        "JOIN targets t ON t.id = m.target_id WHERE 1=1"
-    )
+    query = "SELECT m.*, t.name FROM measurements m JOIN targets t ON t.id = m.target_id WHERE 1=1"
     params: list = []
     if target_id is not None:
         query += " AND m.target_id = ?"
@@ -68,7 +70,7 @@ async def list_measurements(
     return [_row_to_measurement(r) for r in rows]
 
 
-async def latest_measurement(conn: aiosqlite.Connection, target_id: int) -> Optional[MeasurementOut]:
+async def latest_measurement(conn: aiosqlite.Connection, target_id: int) -> MeasurementOut | None:
     async with conn.execute(
         "SELECT m.*, t.name FROM measurements m JOIN targets t ON t.id = m.target_id "
         "WHERE m.target_id = ? ORDER BY m.timestamp DESC LIMIT 1",
@@ -108,9 +110,7 @@ async def recent_results_for_targets(
     return results
 
 
-async def latencies_in_range(
-    conn: aiosqlite.Connection, *, target_id: Optional[int], start: str, end: str
-) -> list[float]:
+async def latencies_in_range(conn: aiosqlite.Connection, *, target_id: int | None, start: str, end: str) -> list[float]:
     query = "SELECT latency_ms FROM measurements WHERE timestamp BETWEEN ? AND ? AND latency_ms IS NOT NULL"
     params: list = [start, end]
     if target_id is not None:
@@ -121,9 +121,7 @@ async def latencies_in_range(
     return [r["latency_ms"] for r in rows]
 
 
-async def aggregate_in_range(
-    conn: aiosqlite.Connection, *, target_id: Optional[int], start: str, end: str
-) -> dict:
+async def aggregate_in_range(conn: aiosqlite.Connection, *, target_id: int | None, start: str, end: str) -> dict:
     query = """
         SELECT
             COUNT(*) AS sample_count,
@@ -143,7 +141,7 @@ async def aggregate_in_range(
     return dict(row) if row else {}
 
 
-async def earliest_timestamp(conn: aiosqlite.Connection) -> Optional[str]:
+async def earliest_timestamp(conn: aiosqlite.Connection) -> str | None:
     async with conn.execute("SELECT MIN(timestamp) AS ts FROM measurements") as cursor:
         row = await cursor.fetchone()
     return row["ts"] if row else None
@@ -162,7 +160,7 @@ async def downsample_older_than(conn: aiosqlite.Connection, days_old: int = 7) -
     Leaves data newer than `days_old` at high resolution (e.g. 5 seconds).
     """
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days_old)).isoformat()
-    
+
     query = """
         SELECT
             target_id,
@@ -177,17 +175,17 @@ async def downsample_older_than(conn: aiosqlite.Connection, days_old: int = 7) -
         GROUP BY target_id, hour_bucket
         HAVING COUNT(*) > 1
     """
-    
+
     async with write_transaction() as tx:
         async with tx.execute(query, (cutoff,)) as cursor:
             rows = await cursor.fetchall()
-            
+
         if not rows:
             return 0
-            
+
         # Delete the fine-grained rows that we are about to replace
         await tx.execute("DELETE FROM measurements WHERE timestamp < ?", (cutoff,))
-        
+
         # Insert the downsampled hourly rows
         insert_query = """
             INSERT INTO measurements (target_id, timestamp, latency_ms, packet_loss, jitter_ms, success, error, network_name)
@@ -201,11 +199,11 @@ async def downsample_older_than(conn: aiosqlite.Connection, days_old: int = 7) -
                 row["packet_loss"],
                 row["jitter_ms"],
                 row["success"],
-                "Downsampled", # indicate this is an aggregated row
-                row["network_name"]
+                "Downsampled",  # indicate this is an aggregated row
+                row["network_name"],
             )
             for row in rows
         ]
         await tx.executemany(insert_query, insert_data)
-        
-    return len(rows)
+
+    return len(insert_data)

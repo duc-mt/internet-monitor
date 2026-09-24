@@ -6,12 +6,13 @@ http://127.0.0.1:8765/api) - it never touches the database or performs
 pings itself, so `internet-monitor status` always reflects exactly what the
 dashboard would show.
 """
+
 from __future__ import annotations
 
 import json as jsonlib
 import subprocess
 import sys
-from typing import Any, Optional
+from typing import Any
 
 import click
 import httpx
@@ -58,7 +59,7 @@ class ApiClient:
         return self._request("DELETE", path, **kwargs)
 
 
-def print_table(rows: list[dict], columns: Optional[list[str]] = None) -> None:
+def print_table(rows: list[dict], columns: list[str] | None = None) -> None:
     if not rows:
         click.echo("(none)")
         return
@@ -73,7 +74,9 @@ def print_table(rows: list[dict], columns: Optional[list[str]] = None) -> None:
 
 @click.group()
 @click.option(
-    "--api-url", default=DEFAULT_API_URL, envvar="INTERNET_MONITOR_API_URL",
+    "--api-url",
+    default=DEFAULT_API_URL,
+    envvar="INTERNET_MONITOR_API_URL",
     help="Base URL of the Internet Monitor API.",
     show_default=True,
 )
@@ -103,17 +106,19 @@ def status(client: ApiClient, as_json: bool):
     click.echo(f"Packet loss: {_fmt_pct(data['packet_loss'])}")
     click.echo(f"Jitter:      {_fmt_ms(data['jitter_ms'])}")
     click.echo(f"Targets reachable: {data['targets_reachable']}/{data['targets_total']}")
-    click.echo(f"Monitoring: {'running' if data['monitoring_running'] else 'stopped'} "
-               f"(uptime {int(data['monitoring_uptime_seconds'])}s)")
+    click.echo(
+        f"Monitoring: {'running' if data['monitoring_running'] else 'stopped'} "
+        f"(uptime {int(data['monitoring_uptime_seconds'])}s)"
+    )
     if data["active_outage"]:
         click.echo(click.style("An outage is currently in progress.", fg="red"))
 
 
-def _fmt_ms(v: Optional[float]) -> str:
+def _fmt_ms(v: float | None) -> str:
     return "—" if v is None else f"{v:.1f} ms"
 
 
-def _fmt_pct(v: Optional[float]) -> str:
+def _fmt_pct(v: float | None) -> str:
     return "—" if v is None else f"{v:.1f}%"
 
 
@@ -150,9 +155,18 @@ def targets_list(client: ApiClient):
     """List all configured targets."""
     rows = client.get("/targets")
     print_table(
-        [{"id": t["id"], "name": t["name"], "host": t["host"], "protocol": t["protocol"],
-          "interval": f"{t['interval_seconds']}s", "enabled": t["enabled"], "gateway": t["is_gateway"]}
-         for t in rows]
+        [
+            {
+                "id": t["id"],
+                "name": t["name"],
+                "host": t["host"],
+                "protocol": t["protocol"],
+                "interval": f"{t['interval_seconds']}s",
+                "enabled": t["enabled"],
+                "gateway": t["is_gateway"],
+            }
+            for t in rows
+        ]
     )
 
 
@@ -160,7 +174,9 @@ def targets_list(client: ApiClient):
 @click.argument("name")
 @click.argument("host")
 @click.option("--protocol", type=click.Choice(["icmp", "tcp"]), default="icmp", show_default=True)
-@click.option("--port", type=int, default=None, help="TCP port (required for --protocol tcp unless you want the default of 443).")
+@click.option(
+    "--port", type=int, default=None, help="TCP port (required for --protocol tcp unless you want the default of 443)."
+)
 @click.option("--interval", type=int, default=5, show_default=True, help="Seconds between checks.")
 @click.option("--gateway", is_flag=True, help="Mark as the local gateway (excluded from outage detection).")
 @click.option("--disabled", is_flag=True, help="Create the target disabled.")
@@ -168,8 +184,13 @@ def targets_list(client: ApiClient):
 def targets_add(client: ApiClient, name, host, protocol, port, interval, gateway, disabled):
     """Add a new monitored target, e.g. `internet-monitor targets add "Office WAN" 203.0.113.5`."""
     payload = {
-        "name": name, "host": host, "protocol": protocol, "port": port,
-        "interval_seconds": interval, "is_gateway": gateway, "enabled": not disabled,
+        "name": name,
+        "host": host,
+        "protocol": protocol,
+        "port": port,
+        "interval_seconds": interval,
+        "is_gateway": gateway,
+        "enabled": not disabled,
     }
     created = client.post("/targets", json=payload)
     click.echo(f"Created target #{created['id']} ({created['name']}).")
@@ -186,10 +207,18 @@ def targets_add(client: ApiClient, name, host, protocol, port, interval, gateway
 @click.pass_obj
 def targets_edit(client: ApiClient, target_id, name, host, protocol, port, interval, enabled):
     """Edit fields of an existing target by id."""
-    payload = {k: v for k, v in {
-        "name": name, "host": host, "protocol": protocol, "port": port,
-        "interval_seconds": interval, "enabled": enabled,
-    }.items() if v is not None}
+    payload = {
+        k: v
+        for k, v in {
+            "name": name,
+            "host": host,
+            "protocol": protocol,
+            "port": port,
+            "interval_seconds": interval,
+            "enabled": enabled,
+        }.items()
+        if v is not None
+    }
     if not payload:
         raise click.UsageError("Provide at least one field to change.")
     updated = client.put(f"/targets/{target_id}", json=payload)
@@ -211,18 +240,21 @@ def targets_remove(client: ApiClient, target_id):
 # --------------------------------------------------------------------------
 @cli.command()
 @click.option("--target", "target_id", type=int, default=None, help="Filter by target id.")
-@click.option("--range", "range_name", default="24h",
-              type=click.Choice(["1h", "24h", "7d", "30d"]), show_default=True)
+@click.option("--range", "range_name", default="24h", type=click.Choice(["1h", "24h", "7d", "30d"]), show_default=True)
 @click.option("--limit", type=int, default=20, show_default=True)
 @click.pass_obj
 def history(client: ApiClient, target_id, range_name, limit):
     """Show recent measurements and a summary for the chosen range."""
     stats = client.get("/statistics", params={"range": range_name, **({"target_id": target_id} if target_id else {})})
     click.echo(f"Statistics ({range_name}):")
-    click.echo(f"  avg={_fmt_ms(stats['avg_latency_ms'])}  min={_fmt_ms(stats['min_latency_ms'])}  "
-               f"max={_fmt_ms(stats['max_latency_ms'])}  p95={_fmt_ms(stats['p95_latency_ms'])}")
-    click.echo(f"  packet loss={_fmt_pct(stats['packet_loss_pct'])}  jitter={_fmt_ms(stats['avg_jitter_ms'])}  "
-               f"outages={stats['outage_count']}  samples={stats['sample_count']}")
+    click.echo(
+        f"  avg={_fmt_ms(stats['avg_latency_ms'])}  min={_fmt_ms(stats['min_latency_ms'])}  "
+        f"max={_fmt_ms(stats['max_latency_ms'])}  p95={_fmt_ms(stats['p95_latency_ms'])}"
+    )
+    click.echo(
+        f"  packet loss={_fmt_pct(stats['packet_loss_pct'])}  jitter={_fmt_ms(stats['avg_jitter_ms'])}  "
+        f"outages={stats['outage_count']}  samples={stats['sample_count']}"
+    )
     click.echo()
 
     params = {"limit": limit}
@@ -230,9 +262,16 @@ def history(client: ApiClient, target_id, range_name, limit):
         params["target_id"] = target_id
     rows = client.get("/measurements", params=params)
     print_table(
-        [{"time": m["timestamp"], "target": m.get("target_name", m["target_id"]),
-          "latency_ms": m["latency_ms"], "loss%": m["packet_loss"], "success": m["success"]}
-         for m in rows]
+        [
+            {
+                "time": m["timestamp"],
+                "target": m.get("target_name", m["target_id"]),
+                "latency_ms": m["latency_ms"],
+                "loss%": m["packet_loss"],
+                "success": m["success"],
+            }
+            for m in rows
+        ]
     )
 
 
@@ -242,9 +281,14 @@ def history(client: ApiClient, target_id, range_name, limit):
 @cli.command()
 @click.option("--format", "fmt", type=click.Choice(["csv", "json"]), default="csv", show_default=True)
 @click.option("--target", "target_id", type=int, default=None)
-@click.option("--range", "range_name", default="24h",
-              type=click.Choice(["1h", "24h", "7d", "30d"]), show_default=True,
-              help="Only used for --format json (the summarized report).")
+@click.option(
+    "--range",
+    "range_name",
+    default="24h",
+    type=click.Choice(["1h", "24h", "7d", "30d"]),
+    show_default=True,
+    help="Only used for --format json (the summarized report).",
+)
 @click.option("--output", "-o", type=click.Path(), default=None, help="Write to this file instead of stdout.")
 @click.pass_obj
 def export(client: ApiClient, fmt, target_id, range_name, output):
@@ -277,7 +321,7 @@ def config():
 @config.command("get")
 @click.argument("key", required=False)
 @click.pass_obj
-def config_get(client: ApiClient, key: Optional[str]):
+def config_get(client: ApiClient, key: str | None):
     """Print all settings, or a single dotted key (e.g. notifications.on_offline)."""
     data = client.get("/settings")
     if key is None:

@@ -18,6 +18,7 @@ system:
   minimal Linux install) or a weird `route`/`networksetup` output must
   never take down a measurement, only leave `network_name` as None for it.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -26,7 +27,6 @@ import re
 import sys
 import time
 import urllib.request
-from typing import Optional
 
 logger = logging.getLogger("internet_monitor.network_info")
 
@@ -35,11 +35,11 @@ _IS_WINDOWS = sys.platform == "win32"
 _CACHE_TTL = 30.0  # seconds
 _SUBPROCESS_TIMEOUT = 3.0
 
-_cached_name: Optional[str] = None
+_cached_name: str | None = None
 _cache_updated_at: float = 0.0
 
 
-async def get_network_name(force: bool = False) -> Optional[str]:
+async def get_network_name(force: bool = False) -> str | None:
     """Returns something like "HomeWiFi" or "Wired (en0)", or None if it
     couldn't be determined (unsupported OS, missing tools, no connection)."""
     global _cached_name, _cache_updated_at
@@ -71,7 +71,9 @@ def reset_cache() -> None:
 async def _run(*args: str, timeout: float = _SUBPROCESS_TIMEOUT) -> str:
     try:
         proc = await asyncio.create_subprocess_exec(
-            *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
         )
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         return stdout.decode(errors="replace")
@@ -81,7 +83,8 @@ async def _run(*args: str, timeout: float = _SUBPROCESS_TIMEOUT) -> str:
 
 # --- macOS ------------------------------------------------------------
 
-async def _macos_network_name() -> Optional[str]:
+
+async def _macos_network_name() -> str | None:
     wifi_device = await _macos_wifi_device()
     default_iface = await _macos_default_route_interface()
 
@@ -93,7 +96,7 @@ async def _macos_network_name() -> Optional[str]:
     return None
 
 
-async def _macos_wifi_device() -> Optional[str]:
+async def _macos_wifi_device() -> str | None:
     output = await _run("networksetup", "-listallhardwareports")
     for block in output.split("\n\n"):
         if "Wi-Fi" in block or "AirPort" in block:
@@ -103,13 +106,13 @@ async def _macos_wifi_device() -> Optional[str]:
     return None
 
 
-async def _macos_default_route_interface() -> Optional[str]:
+async def _macos_default_route_interface() -> str | None:
     output = await _run("route", "-n", "get", "default")
     m = re.search(r"interface:\s*(\S+)", output)
     return m.group(1) if m else None
 
 
-async def _macos_ssid(device: str) -> Optional[str]:
+async def _macos_ssid(device: str) -> str | None:
     output = await _run("networksetup", "-getairportnetwork", device)
     m = re.search(r"Current Wi-Fi Network:\s*(.+)", output)
     if m:
@@ -132,7 +135,7 @@ async def _macos_ssid(device: str) -> Optional[str]:
 _SYSTEM_PROFILER_SSID_RE = re.compile(r"Current Network Information:\r?\n\s*([^\r\n:]+):[ \t]*\r?\n")
 
 
-async def _macos_ssid_via_system_profiler() -> Optional[str]:
+async def _macos_ssid_via_system_profiler() -> str | None:
     """
     Noticeably slower than the other lookups here (system_profiler
     enumerates hardware, sometimes taking a few seconds) - acceptable
@@ -151,7 +154,7 @@ async def _macos_ssid_via_system_profiler() -> Optional[str]:
 _WINDOWS_SSID_RE = re.compile(r"^\s*SSID\s*:\s*(.+?)\s*$", re.MULTILINE)
 
 
-async def _windows_network_name() -> Optional[str]:
+async def _windows_network_name() -> str | None:
     output = await _run("netsh", "wlan", "show", "interfaces")
     m = _WINDOWS_SSID_RE.search(output)
     if m:
@@ -170,7 +173,7 @@ async def _windows_network_name() -> Optional[str]:
 _WINDOWS_DEFAULT_ROUTE_RE = re.compile(r"^\s*0\.0\.0\.0\s+0\.0\.0\.0\s+(\d+\.\d+\.\d+\.\d+)", re.MULTILINE)
 
 
-async def get_default_gateway_windows() -> Optional[str]:
+async def get_default_gateway_windows() -> str | None:
     """
     Windows-only default-gateway lookup via `route print -4`'s IPv4 route
     table, which has exactly one row for the 0.0.0.0/0.0.0.0 (default)
@@ -184,7 +187,7 @@ async def get_default_gateway_windows() -> Optional[str]:
     return m.group(1) if m else None
 
 
-async def get_default_gateway_macos() -> Optional[str]:
+async def get_default_gateway_macos() -> str | None:
     """
     macOS-only default-gateway lookup (the same `route -n get default`
     parsed above for the interface, here for the gateway field instead).
@@ -200,7 +203,8 @@ async def get_default_gateway_macos() -> Optional[str]:
 
 # --- Linux --------------------------------------------------------------
 
-async def _linux_network_name() -> Optional[str]:
+
+async def _linux_network_name() -> str | None:
     ssid = (await _run("iwgetid", "-r")).strip()
     if ssid:
         return ssid
@@ -216,21 +220,23 @@ async def _linux_network_name() -> Optional[str]:
     return f"Wired ({iface})" if iface else None
 
 
-async def _linux_default_route_interface() -> Optional[str]:
+async def _linux_default_route_interface() -> str | None:
     output = await _run("ip", "route", "show", "default")
     m = re.search(r"\bdev\s+(\S+)", output)
     return m.group(1) if m else None
 
 
-async def get_wan_ip() -> Optional[str]:
+async def get_wan_ip() -> str | None:
     """
     Fetch the public WAN IP address using icanhazip.com.
     Done in a thread to avoid blocking the async event loop.
     """
+
     def _fetch():
-        req = urllib.request.Request("http://ipv4.icanhazip.com", headers={'User-Agent': 'curl/7.68.0'})
+        req = urllib.request.Request("http://ipv4.icanhazip.com", headers={"User-Agent": "curl/7.68.0"})
         with urllib.request.urlopen(req, timeout=5.0) as response:
-            return response.read().decode('utf-8').strip()
+            return response.read().decode("utf-8").strip()
+
     try:
         return await asyncio.to_thread(_fetch)
     except Exception as e:

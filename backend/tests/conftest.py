@@ -11,24 +11,27 @@ INTERNET_MONITOR_AUTOSTART is forced to "0" before app.main is ever
 imported so the FastAPI lifespan never spawns real monitoring loops
 against the live internet during API tests.
 """
+
 from __future__ import annotations
 
 import os
 
 os.environ["INTERNET_MONITOR_AUTOSTART"] = "0"
 
-import asyncio
 from pathlib import Path
 
 import pytest
 import pytest_asyncio
-
 from app.database import connection as db_connection
 from app.monitoring import network_info
 from app.monitoring import scheduler as monitoring_scheduler
 from app.monitoring.pinger import PingBatchResult
 from app.services import (
-    connectivity_service, notification_service, outage_service, settings_service, sleep_service,
+    connectivity_service,
+    notification_service,
+    outage_service,
+    settings_service,
+    sleep_service,
 )
 
 
@@ -66,8 +69,8 @@ def client(tmp_path: Path, monkeypatch):
     sleep_service.reset_state()
     network_info.reset_cache()
 
-    from fastapi.testclient import TestClient
     from app.main import app
+    from fastapi.testclient import TestClient
 
     with TestClient(app) as test_client:
         yield test_client

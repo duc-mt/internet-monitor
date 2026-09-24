@@ -23,6 +23,7 @@ wants to know the instant they lose or regain connectivity. Threshold
 alerts (latency/packet-loss) are debounced per (kind, target) key so a
 flapping metric doesn't spam five notifications a minute.
 """
+
 from __future__ import annotations
 
 import logging
@@ -104,8 +105,9 @@ def _windows_toast_script(title: str, message: str) -> str:
     )
 
 
-async def send(title: str, message: str, *, urgency: str = "normal", key: str | None = None,
-                cooldown_seconds: int = 0) -> None:
+async def send(
+    title: str, message: str, *, urgency: str = "normal", key: str | None = None, cooldown_seconds: int = 0
+) -> None:
     if key is not None and cooldown_seconds > 0:
         last = _last_sent.get(key)
         now = time.monotonic()
@@ -119,25 +121,36 @@ async def send(title: str, message: str, *, urgency: str = "normal", key: str | 
 
     try:
         if _IS_MACOS:
-            script = (
-                f'display notification "{_applescript_escape(message)}" '
-                f'with title "{_applescript_escape(title)}"'
-            )
+            script = f'display notification "{_applescript_escape(message)}" with title "{_applescript_escape(title)}"'
             proc = await create_subprocess_exec(
-                "osascript", "-e", script, stdout=DEVNULL, stderr=DEVNULL,
+                "osascript",
+                "-e",
+                script,
+                stdout=DEVNULL,
+                stderr=DEVNULL,
             )
         elif _IS_WINDOWS:
             script = _windows_toast_script(title, message)
             proc = await create_subprocess_exec(
-                "powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
-                "-Command", script,
-                stdout=DEVNULL, stderr=DEVNULL,
+                "powershell",
+                "-NoProfile",
+                "-NonInteractive",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                script,
+                stdout=DEVNULL,
+                stderr=DEVNULL,
             )
         else:
             proc = await create_subprocess_exec(
-                "notify-send", "--app-name=Internet Monitor", f"--urgency={urgency}",
-                title, message,
-                stdout=DEVNULL, stderr=DEVNULL,
+                "notify-send",
+                "--app-name=Internet Monitor",
+                f"--urgency={urgency}",
+                title,
+                message,
+                stdout=DEVNULL,
+                stderr=DEVNULL,
             )
         await proc.wait()
     except OSError as exc:

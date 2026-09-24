@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import aiosqlite
 from fastapi import APIRouter, Depends
 
@@ -14,8 +12,8 @@ router = APIRouter(prefix="/api/outages", tags=["outages"])
 
 @router.get("", response_model=list[OutageOut])
 async def list_outages(
-    start: Optional[str] = None,
-    end: Optional[str] = None,
+    start: str | None = None,
+    end: str | None = None,
     limit: int = 200,
     db: aiosqlite.Connection = Depends(get_db),
 ):
