@@ -6,9 +6,9 @@
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 A lightweight, self-contained Linux application that continuously measures
-Internet latency, packet loss, jitter, and connectivity — with a local
-dashboard, a REST API, and a CLI. No cloud dependency: everything runs and
-is stored on your own machine.
+Internet latency, packet loss, jitter, and connectivity, alongside on-demand
+speed testing — with a local dashboard, a REST API, and a CLI. No cloud
+dependency: everything runs and is stored on your own machine.
 
 - **Backend**: Python 3.12 / FastAPI, async monitoring engine, SQLite storage
 - **Frontend**: React + TypeScript + Tailwind CSS dashboard
@@ -174,12 +174,12 @@ successfully verified on real Windows environments.
 internet-monitor/
 ├── backend/            FastAPI app, monitoring engine, SQLite layer
 │   ├── app/
-│   │   ├── api/        REST endpoints (targets, measurements, statistics, outages, settings, status, monitoring, export, health)
+│   │   ├── api/        REST endpoints (targets, measurements, statistics, outages, settings, status, monitoring, export, health, speedtest)
 │   │   ├── database/   schema.sql + async repositories (aiosqlite)
 │   │   ├── monitoring/ pinger.py (ICMP/TCP probes) + scheduler.py (per-target async loops)
 │   │   ├── models/     Pydantic request/response/settings models
-│   │   ├── services/   statistics, quality classification, outage detection,
-│   │   │               connectivity tracking, notifications, settings cache
+│   │   ├── services/   statistics, quality classification, outage detection, status,
+│   │   │               connectivity, sleep tracking, notifications, settings, speedtest
 │   │   └── main.py     app wiring, lifespan startup/shutdown, static frontend mount
 │   └── tests/          pytest, all network calls mocked
 ├── frontend/           React + TypeScript + Tailwind dashboard (Vite)
@@ -356,7 +356,7 @@ or performs pings itself.
 
 ## Testing
 
-**Backend** (68 tests, no real network access required — every subprocess
+**Backend** (~120 tests, no real network access required — every subprocess
 and socket call is mocked or points at an ephemeral local server):
 
 ```bash
@@ -365,7 +365,7 @@ cd backend
 .venv/bin/python -m pytest -q --cov=app --cov-report=term-missing
 ```
 
-**Frontend** (32 tests: formatting helpers, the API client's error
+**Frontend** (~27 tests: formatting helpers, the API client's error
 handling, component rendering/empty-states, and a mocked-API Dashboard
 integration test):
 
