@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from app.monitoring import network_info
 
 MACOS_HARDWARE_PORTS = """Hardware Port: Wi-Fi
@@ -55,6 +54,7 @@ def _reset_cache():
 def _fake_run(responses: dict[str, str]):
     async def fake(*args: str, timeout: float = 3.0) -> str:
         return responses.get(args[0], "")
+
     return fake
 
 

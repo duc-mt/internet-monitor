@@ -1,28 +1,30 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import get_db
 from app.models.status import StatisticsResponse
-from app.services import statistics_service
+from app.services.statistics_service import RangeName, compute_statistics
 
 router = APIRouter(prefix="/api/statistics", tags=["statistics"])
 
 
 @router.get("", response_model=StatisticsResponse)
 async def get_statistics(
-    range: str = "24h",
-    start: Optional[str] = None,
-    end: Optional[str] = None,
-    target_id: Optional[int] = None,
+    range: RangeName = "24h",
+    start: str | None = None,
+    end: str | None = None,
+    target_id: int | None = None,
     db: aiosqlite.Connection = Depends(get_db),
 ):
     try:
-        return await statistics_service.compute_statistics(
-            db, range_name=range, start=start, end=end, target_id=target_id  # type: ignore[arg-type]
+        return await compute_statistics(
+            db,
+            range_name=range,
+            start=start,
+            end=end,
+            target_id=target_id,  # type: ignore[arg-type]
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

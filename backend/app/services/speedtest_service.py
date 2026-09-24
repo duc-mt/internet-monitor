@@ -16,6 +16,7 @@ scheduler runs on, no matter how the download itself behaves (slow
 server, network stall, etc.), which is easier to reason about here than
 trusting every layer of an async HTTP stack to never accidentally block.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -47,6 +48,7 @@ def _blocking_download(size_bytes: int, timeout: float) -> SpeedtestResult:
         resp = requests.get(_TEST_URL, params={"bytes": size_bytes}, stream=True, timeout=timeout)
     except requests.exceptions.SSLError:
         import urllib3
+
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         start = time.monotonic()
         resp = requests.get(_TEST_URL, params={"bytes": size_bytes}, stream=True, timeout=timeout, verify=False)
