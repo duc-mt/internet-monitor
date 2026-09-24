@@ -68,6 +68,13 @@ def reset_cache() -> None:
     _cache_updated_at = 0.0
 
 
+def _format_wired_or_tunnel(iface: str) -> str:
+    tunnel_prefixes = ("utun", "tun", "tap", "wg", "ppp", "ipsec", "tailscale", "zerotier")
+    if any(iface.lower().startswith(p) for p in tunnel_prefixes):
+        return f"Tunnel ({iface})"
+    return f"Wired ({iface})"
+
+
 async def _run(*args: str, timeout: float = _SUBPROCESS_TIMEOUT) -> str:
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -92,7 +99,7 @@ async def _macos_network_name() -> str | None:
         ssid = await _macos_ssid(wifi_device)
         return ssid or "Wi-Fi (unknown network)"
     if default_iface:
-        return f"Wired ({default_iface})"
+        return _format_wired_or_tunnel(default_iface)
     return None
 
 
@@ -165,9 +172,26 @@ async def _windows_network_name() -> str | None:
     # macOS's `route -n get default` + `networksetup` combination does, so
     # this is deliberately less precise than the macOS/Linux versions: a
     # generic "Wired" label whenever there's a working default route at
-    # all, rather than the specific adapter name.
+    # all, rather than the specific adapter name. We can try PowerShell first
+    # to identify if it's a tunnel.
+    
+    iface = await _windows_default_route_interface()
+    if iface:
+        tunnel_keywords = ("tailscale", "openvpn", "wireguard", "zerotier", "tunnel", "vpn")
+        if any(kw in iface.lower() for kw in tunnel_keywords):
+            return f"Tunnel ({iface})"
+        return f"Wired ({iface})"
+
     gateway = await get_default_gateway_windows()
     return "Wired" if gateway else None
+
+
+async def _windows_default_route_interface() -> str | None:
+    """Attempts to get the active default route's interface alias on Windows using PowerShell."""
+    output = await _run("powershell", "-NoProfile", "-Command", 
+                        "Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | Select-Object -First 1 -ExpandProperty InterfaceAlias")
+    iface = output.strip()
+    return iface if iface else None
 
 
 _WINDOWS_DEFAULT_ROUTE_RE = re.compile(r"^\s*0\.0\.0\.0\s+0\.0\.0\.0\s+(\d+\.\d+\.\d+\.\d+)", re.MULTILINE)
@@ -217,7 +241,7 @@ async def _linux_network_name() -> str | None:
                 return name
 
     iface = await _linux_default_route_interface()
-    return f"Wired ({iface})" if iface else None
+    return _format_wired_or_tunnel(iface) if iface else None
 
 
 async def _linux_default_route_interface() -> str | None:
