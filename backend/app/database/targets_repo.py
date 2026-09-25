@@ -28,7 +28,8 @@ async def list_targets(conn: aiosqlite.Connection, *, enabled_only: bool = False
     query = "SELECT * FROM targets"
     if enabled_only:
         query += " WHERE enabled = 1"
-    query += " ORDER BY is_gateway DESC, id ASC"
+    # Ensure standard targets appear in a consistent order regardless of their insertion ID
+    query += " ORDER BY is_gateway DESC, CASE name WHEN 'WAN' THEN 1 WHEN 'Google DNS' THEN 2 WHEN 'Cloudflare DNS' THEN 3 ELSE 4 END ASC, id ASC"
     async with conn.execute(query) as cursor:
         rows = await cursor.fetchall()
     return [_row_to_target(r) for r in rows]
