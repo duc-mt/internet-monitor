@@ -79,6 +79,12 @@ cd backend && .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8
 # open http://127.0.0.1:8765
 ```
 
+**Ad-hoc testing script (`test-site.ps1`)**:
+If you are using the `test-scripts\test-site.ps1` script for ad-hoc testing and receive a "running scripts is disabled" error, you can bypass the PowerShell execution policy for that run:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\test-scripts\test-site.ps1
+```
+
 To install permanently as a background service, see [Installing](#installing).
 
 ---
