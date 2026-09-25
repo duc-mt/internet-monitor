@@ -92,19 +92,30 @@ async def delete_target(conn: aiosqlite.Connection, target_id: int) -> bool:
 
 
 async def seed_default_targets(conn: aiosqlite.Connection) -> None:
-    """Populate the classic three defaults the first time the app runs."""
+    """Populate defaults on first run, and update Gateway/WAN IPs on every startup."""
     existing = await list_targets(conn)
     wan_ip = await network_info.get_wan_ip() or "127.0.0.1"
+    gateway_ip = await _detect_gateway()
 
     if existing:
+        # Update existing Gateway and WAN targets to current IPs dynamically
+        gateway_target = next((t for t in existing if t.name == "Gateway"), None)
+        wan_target = next((t for t in existing if t.name == "WAN"), None)
+        
+        async with write_transaction() as tx:
+            if gateway_target and gateway_target.host != gateway_ip:
+                await tx.execute("UPDATE targets SET host = ? WHERE id = ?", (gateway_ip, gateway_target.id))
+            if wan_target and wan_target.host != wan_ip:
+                await tx.execute("UPDATE targets SET host = ? WHERE id = ?", (wan_ip, wan_target.id))
+                
         # Check if WAN target is missing and add it for backward compatibility
-        if not any(t.name == "WAN" for t in existing):
+        if not wan_target:
             await create_target(conn, TargetCreate(name="WAN", host=wan_ip, protocol="icmp", interval_seconds=5))
         return
 
     defaults = [
         TargetCreate(
-            name="Gateway", host=await _detect_gateway(), protocol="icmp", is_gateway=True, interval_seconds=5
+            name="Gateway", host=gateway_ip, protocol="icmp", is_gateway=True, interval_seconds=5
         ),
         TargetCreate(name="WAN", host=wan_ip, protocol="icmp", interval_seconds=5),
         TargetCreate(name="Google DNS", host="8.8.8.8", protocol="icmp", interval_seconds=5),
