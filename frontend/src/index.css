@@ -50,11 +50,12 @@ body {
   margin: 0;
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 .font-tabular {
+  font-family: "Chivo Mono", monospace;
   font-variant-numeric: tabular-nums;
 }
 

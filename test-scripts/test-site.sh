@@ -18,7 +18,7 @@
 # server stops.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 BACKEND_DIR="$SCRIPT_DIR/../backend"
 SITE_NAME="${1:-site-$(date +%Y%m%d-%H%M%S)}"
 SAFE_NAME="$(echo "$SITE_NAME" | tr ' /' '--')"

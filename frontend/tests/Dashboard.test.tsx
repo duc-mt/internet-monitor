@@ -68,7 +68,7 @@ describe("Dashboard", () => {
 
   it("renders status once loaded", async () => {
     renderDashboard();
-    await waitFor(() => expect(screen.getByText("Online")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Online")[0]).toBeInTheDocument());
     expect(screen.getByText(/3 of 3 targets reachable/i)).toBeInTheDocument();
     expect(screen.getByText("Good")).toBeInTheDocument();
   });
