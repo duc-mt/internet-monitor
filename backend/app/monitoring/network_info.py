@@ -174,7 +174,7 @@ async def _windows_network_name() -> str | None:
     # generic "Wired" label whenever there's a working default route at
     # all, rather than the specific adapter name. We can try PowerShell first
     # to identify if it's a tunnel.
-    
+
     iface = await _windows_default_route_interface()
     if iface:
         tunnel_keywords = ("tailscale", "openvpn", "wireguard", "zerotier", "tunnel", "vpn")
@@ -188,8 +188,12 @@ async def _windows_network_name() -> str | None:
 
 async def _windows_default_route_interface() -> str | None:
     """Attempts to get the active default route's interface alias on Windows using PowerShell."""
-    output = await _run("powershell", "-NoProfile", "-Command", 
-                        "Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | Select-Object -First 1 -ExpandProperty InterfaceAlias")
+    output = await _run(
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        "Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | Select-Object -First 1 -ExpandProperty InterfaceAlias",
+    )
     iface = output.strip()
     return iface if iface else None
 
