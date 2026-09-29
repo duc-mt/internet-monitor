@@ -58,22 +58,24 @@ export function History() {
   const chartTargets = targetId ? targets.filter((t) => t.id === targetId) : targets.filter((t) => t.enabled);
 
   return (
-    <div className="space-y-5">
-      <header className="flex items-center justify-between flex-wrap gap-3">
+    <div className="space-y-6">
+      <header className="sticky top-0 z-10 -mx-6 lg:-mx-8 -mt-6 lg:-mt-8 mb-6 px-6 lg:px-8 py-4 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-border flex items-center justify-between flex-wrap gap-3 transition-all-fast">
         <div>
-          <h1 className="text-lg font-semibold">History</h1>
-          <p className="text-sm text-muted mt-0.5">Latency, packet loss, jitter, and outage history.</p>
+          <h1 className="text-xl font-extrabold tracking-tight text-text">History</h1>
+          <p className="text-xs text-muted font-medium mt-0.5">
+            Latency, packet loss, jitter, and outage history · Lịch sử độ trễ, tỷ lệ mất gói và các đợt gián đoạn
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <a
             href={api.exportMeasurementsCsvUrl({ target_id: targetId })}
-            className="flex items-center gap-1.5 text-xs rounded-control border border-border px-2.5 py-1.5 text-muted hover:text-text hover:border-accent"
+            className="flex items-center gap-1.5 text-xs rounded-control border border-border bg-panel px-3 py-1.5 text-muted hover:text-text hover:border-accent shadow-sm transition-all-fast"
           >
             <Download size={13} /> CSV
           </a>
           <a
             href={api.exportReportJsonUrl({ range, target_id: targetId, ...(rangeParams ?? {}) })}
-            className="flex items-center gap-1.5 text-xs rounded-control border border-border px-2.5 py-1.5 text-muted hover:text-text hover:border-accent"
+            className="flex items-center gap-1.5 text-xs rounded-control border border-border bg-panel px-3 py-1.5 text-muted hover:text-text hover:border-accent shadow-sm transition-all-fast"
           >
             <Download size={13} /> JSON report
           </a>
@@ -81,13 +83,13 @@ export function History() {
       </header>
 
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center rounded-control border border-border p-0.5 gap-0.5">
+        <div className="flex items-center rounded-control border border-border p-0.5 gap-0.5 bg-panel-alt">
           {RANGE_TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => setRange(tab.value)}
-              className={`px-2.5 py-1.5 text-xs rounded-[4px] transition-colors ${
-                range === tab.value ? "bg-accent-soft text-accent font-medium" : "text-muted hover:text-text"
+              className={`px-3 py-1.5 text-xs rounded-[4px] transition-all-fast font-medium ${
+                range === tab.value ? "bg-accent-soft text-accent font-semibold shadow-sm" : "text-muted hover:text-text"
               }`}
             >
               {tab.label}
@@ -95,11 +97,11 @@ export function History() {
           ))}
         </div>
         <select
-          className="rounded-control border border-border bg-panel-alt px-2.5 py-1.5 text-xs"
+          className="rounded-control border border-border bg-panel-alt px-3 py-1.5 text-xs text-text focus:outline-none focus:ring-1 focus:ring-accent transition-all-fast"
           value={targetId ?? ""}
           onChange={(e) => setTargetId(e.target.value ? Number(e.target.value) : undefined)}
         >
-          <option value="">All targets</option>
+          <option value="">All targets (Tất cả mục tiêu)</option>
           {targets.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -114,14 +116,14 @@ export function History() {
             type="datetime-local"
             value={customStart}
             onChange={(e) => setCustomStart(e.target.value)}
-            className="rounded-control border border-border bg-panel-alt px-2.5 py-1.5 text-xs"
+            className="rounded-control border border-border bg-panel-alt px-3 py-1.5 text-xs text-text focus:outline-none focus:ring-1 focus:ring-accent"
           />
-          <span className="text-muted text-xs">to</span>
+          <span className="text-muted text-xs font-medium">to (đến)</span>
           <input
             type="datetime-local"
             value={customEnd}
             onChange={(e) => setCustomEnd(e.target.value)}
-            className="rounded-control border border-border bg-panel-alt px-2.5 py-1.5 text-xs"
+            className="rounded-control border border-border bg-panel-alt px-3 py-1.5 text-xs text-text focus:outline-none focus:ring-1 focus:ring-accent"
           />
         </div>
       )}
@@ -129,7 +131,7 @@ export function History() {
       {statsLoading && !stats && <LoadingState />}
       {statsError && <ErrorState message={statsError} />}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <Stat label="Uptime" value={stats.uptime_pct !== null ? `${stats.uptime_pct.toFixed(2)}%` : "—"} />
           <Stat label="Avg latency" value={formatLatency(stats.avg_latency_ms)} />
           <Stat label="Min / Max" value={`${formatLatency(stats.min_latency_ms)} / ${formatLatency(stats.max_latency_ms)}`} />
@@ -152,8 +154,8 @@ export function History() {
         rangeOptions={HISTORY_CHART_RANGES}
       />
 
-      <div className="rounded-card border border-border bg-panel p-4">
-        <h3 className="text-sm font-medium mb-3">Outage history</h3>
+      <div className="rounded-card border border-border bg-panel p-5 shadow-sm transition-all-fast">
+        <h3 className="text-sm font-semibold tracking-tight text-text mb-3">Outage history · Lịch sử gián đoạn kết nối</h3>
         <OutageList outages={outages ?? []} />
       </div>
     </div>
@@ -162,9 +164,9 @@ export function History() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-card border border-border bg-panel p-3">
-      <p className="text-[11px] uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-1 font-mono font-tabular text-sm">{value}</p>
+    <div className="rounded-card border border-border bg-panel p-3.5 transition-all-fast hover:-translate-y-0.5 hover:shadow-md hover:border-slate-400 dark:hover:border-slate-700">
+      <p className="text-[10px] uppercase tracking-widest font-semibold text-muted">{label}</p>
+      <p className="mt-1 font-mono font-bold font-tabular text-sm text-text">{value}</p>
     </div>
   );
 }

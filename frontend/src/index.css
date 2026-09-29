@@ -3,37 +3,35 @@
 @tailwind utilities;
 
 :root {
-  /* Dark theme (default) - deep ink navy, hairline borders, no drop shadows.
-     Status colors (healthy/degraded/offline/unknown) are functional, not
-     decorative: the brief requires exactly these four states to be visually
-     distinct at a glance. */
-  --color-bg: #0a0e1a;
-  --color-panel: #121826;
-  --color-panel-alt: #161d2e;
-  --color-border: #232b3d;
-  --color-text: #e6eaf2;
-  --color-muted: #8b93a7;
-  --color-accent: #34d8c6;
-  --color-accent-soft: rgba(52, 216, 198, 0.12);
-  --color-healthy: #3dd68c;
-  --color-degraded: #f5b94d;
-  --color-offline: #f2545b;
-  --color-unknown: #6b7280;
+  /* Slate-based Dark Theme (default) */
+  --color-bg: #020617;
+  --color-panel: #0f172a;
+  --color-panel-alt: #1e293b;
+  --color-border: #1e293b;
+  --color-text: #f1f5f9;
+  --color-muted: #94a3b8;
+  --color-accent: #38bdf8;
+  --color-accent-soft: rgba(56, 189, 248, 0.12);
+  --color-healthy: #34d399;
+  --color-degraded: #fbbf24;
+  --color-offline: #f87171;
+  --color-unknown: #64748b;
 }
 
 :root.light {
-  --color-bg: #f5f6fa;
-  --color-panel: #ffffff;
-  --color-panel-alt: #f0f2f7;
-  --color-border: #e1e4ec;
-  --color-text: #1b2130;
-  --color-muted: #636b80;
-  --color-accent: #0f8f81;
-  --color-accent-soft: rgba(15, 143, 129, 0.1);
-  --color-healthy: #1e9e6b;
-  --color-degraded: #a8690f;
-  --color-offline: #d6394a;
-  --color-unknown: #6b7280;
+  /* Slate-based Light Theme - No pure #ffffff or #000000 */
+  --color-bg: #f8fafc;
+  --color-panel: #f1f5f9;
+  --color-panel-alt: #e2e8f0;
+  --color-border: #cbd5e1;
+  --color-text: #0f172a;
+  --color-muted: #64748b;
+  --color-accent: #0284c7;
+  --color-accent-soft: rgba(2, 132, 199, 0.12);
+  --color-healthy: #059669;
+  --color-degraded: #d97706;
+  --color-offline: #dc2626;
+  --color-unknown: #64748b;
 }
 
 * {
@@ -50,13 +48,17 @@ body {
   margin: 0;
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 .font-tabular {
-  font-family: "Chivo Mono", monospace;
+  font-family: "Fira Code", monospace;
   font-variant-numeric: tabular-nums;
+}
+
+.transition-all-fast {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 ::selection {

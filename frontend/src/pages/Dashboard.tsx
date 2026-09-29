@@ -34,18 +34,18 @@ export function Dashboard() {
   const enabledTargets = targets.filter((t) => t.enabled);
 
   return (
-    <div className="space-y-5">
-      <header className="flex items-center justify-between">
+    <div className="space-y-6">
+      <header className="sticky top-0 z-10 -mx-6 lg:-mx-8 -mt-6 lg:-mt-8 mb-6 px-6 lg:px-8 py-4 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-border flex items-center justify-between transition-all-fast">
         <div>
-          <h1 className="text-lg font-semibold">Dashboard</h1>
-          <p className="text-sm text-muted mt-0.5">
-            {status.targets_reachable} of {status.targets_total} targets reachable
-            {status.active_outage && <span className="text-offline"> · outage in progress</span>}
+          <h1 className="text-xl font-extrabold tracking-tight text-text">Dashboard</h1>
+          <p className="text-xs text-muted font-medium mt-0.5">
+            {status.targets_reachable} of {status.targets_total} targets reachable · Giám sát kết nối thời gian thực
+            {status.active_outage && <span className="text-offline font-semibold"> · outage in progress (Đang gián đoạn)</span>}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {status.network_name && (
-            <span className="flex items-center gap-1.5 text-xs text-muted border border-border rounded-full px-2.5 py-1">
+            <span className="flex items-center gap-1.5 text-xs font-mono text-muted border border-border bg-panel-alt rounded-full px-3 py-1 shadow-sm">
               <Router size={12} />
               {status.network_name}
             </span>
@@ -62,7 +62,7 @@ export function Dashboard() {
           value={status.online ? "Online" : "Offline"}
           accentColor={status.online ? "var(--color-healthy)" : "var(--color-offline)"}
           icon={<Wifi size={16} />}
-          sublabel={`Monitoring uptime: ${formatDuration(status.monitoring_uptime_seconds)}`}
+          sublabel={`Uptime: ${formatDuration(status.monitoring_uptime_seconds)}`}
         />
         <StatCard label="Latency" value={formatLatency(status.latency_ms).replace(" ms", "")} unit="ms" icon={<Gauge size={16} />} />
         <StatCard label="Packet loss" value={formatPct(status.packet_loss).replace("%", "")} unit="%" icon={<PackageX size={16} />} />
@@ -85,14 +85,14 @@ export function Dashboard() {
         onRangeChange={setRangeMinutes}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-card border border-border bg-panel p-4">
-          <h3 className="text-sm font-medium mb-3">Target status</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-card border border-border bg-panel p-5 shadow-sm transition-all-fast">
+          <h3 className="text-sm font-semibold tracking-tight text-text mb-3">Target status · Trạng thái mục tiêu</h3>
           <TargetStatusTable targets={status.targets} />
         </div>
-        <div className="rounded-card border border-border bg-panel p-4">
+        <div className="rounded-card border border-border bg-panel p-5 shadow-sm transition-all-fast">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium">Recent outages</h3>
+            <h3 className="text-sm font-semibold tracking-tight text-text">Recent outages · Sự cố gần đây</h3>
             <Clock size={14} className="text-muted" />
           </div>
           <OutageList outages={outages ?? []} compact />
