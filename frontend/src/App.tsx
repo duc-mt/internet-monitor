@@ -8,10 +8,10 @@ import { Settings } from "./pages/Settings";
 
 export default function App() {
   return (
-    <div className="flex h-full">
+    <div className="flex h-full bg-bg text-text">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-[1200px] mx-auto px-6 py-6">
+        <div className="max-w-[1280px] mx-auto px-6 py-6 lg:px-8 lg:py-8">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/targets" element={<Targets />} />

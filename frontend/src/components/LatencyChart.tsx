@@ -53,16 +53,16 @@ export function LatencyChart({
   const domainStart = now - rangeMinutes * 60_000;
 
   return (
-    <div className="rounded-card border border-border bg-panel p-4">
+    <div className="rounded-card border border-border bg-panel p-4 transition-all-fast">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-text">Latency</h3>
-        <div className="flex items-center rounded-control border border-border p-0.5 gap-0.5">
+        <h3 className="text-sm font-semibold tracking-tight text-text">Latency · Biểu đồ độ trễ</h3>
+        <div className="flex items-center rounded-control border border-border p-0.5 gap-0.5 bg-panel-alt">
           {rangeOptions.map((opt) => (
             <button
               key={opt.label}
               onClick={() => onRangeChange(opt.minutes)}
-              className={`px-2.5 py-1 text-xs rounded-[4px] font-mono transition-colors ${
-                rangeMinutes === opt.minutes ? "bg-accent-soft text-accent" : "text-muted hover:text-text"
+              className={`px-2.5 py-1 text-xs rounded-[4px] font-mono transition-all-fast ${
+                rangeMinutes === opt.minutes ? "bg-accent-soft text-accent font-semibold shadow-sm" : "text-muted hover:text-text"
               }`}
             >
               {opt.label}
@@ -73,7 +73,7 @@ export function LatencyChart({
 
       {measurements.length === 0 ? (
         <div className="h-64 flex items-center justify-center text-sm text-muted">
-          No measurements in this window yet.
+          No measurements in this window yet · Chưa có dữ liệu đo lường trong khoảng thời gian này.
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
@@ -85,14 +85,14 @@ export function LatencyChart({
               domain={[domainStart, now]}
               tickFormatter={(v: number) => formatClock(new Date(v).toISOString())}
               stroke="var(--color-muted)"
-              tick={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
+              tick={{ fontSize: 11, fontFamily: "'Fira Code', monospace" }}
               tickLine={false}
               axisLine={{ stroke: "var(--color-border)" }}
             />
             <YAxis
               unit=" ms"
               stroke="var(--color-muted)"
-              tick={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
+              tick={{ fontSize: 11, fontFamily: "'Fira Code', monospace" }}
               tickLine={false}
               axisLine={false}
               width={56}

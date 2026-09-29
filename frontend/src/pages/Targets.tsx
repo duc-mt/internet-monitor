@@ -27,45 +27,50 @@ export function Targets() {
   const [pendingDelete, setPendingDelete] = useState<Target | null>(null);
 
   return (
-    <div className="space-y-5">
-      <header className="flex items-center justify-between">
+    <div className="space-y-6">
+      <header className="sticky top-0 z-10 -mx-6 lg:-mx-8 -mt-6 lg:-mt-8 mb-6 px-6 lg:px-8 py-4 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-border flex items-center justify-between transition-all-fast">
         <div>
-          <h1 className="text-lg font-semibold">Targets</h1>
-          <p className="text-sm text-muted mt-0.5">Hosts monitored for latency, loss, and jitter.</p>
+          <h1 className="text-xl font-extrabold tracking-tight text-text">Targets</h1>
+          <p className="text-xs text-muted font-medium mt-0.5">
+            Hosts monitored for latency, loss, and jitter · Danh sách máy chủ đích giám sát độ trễ và mất gói
+          </p>
         </div>
         <button
           onClick={() => setCreating(true)}
-          className="flex items-center gap-1.5 rounded-control bg-accent text-bg text-sm font-medium px-3 py-2 hover:opacity-90 transition-opacity"
+          className="flex items-center gap-1.5 rounded-control bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-medium px-3.5 py-2 shadow-sm hover:shadow-md transition-all-fast hover:-translate-y-0.5"
         >
           <Plus size={15} /> Add target
         </button>
       </header>
 
-      <div className="rounded-card border border-border bg-panel">
+      <div className="rounded-card border border-border bg-panel shadow-sm transition-all-fast">
         {loading ? (
           <LoadingState />
         ) : targets.length === 0 ? (
-          <EmptyState title="No targets yet" description="Add a target to start monitoring." />
+          <EmptyState
+            title="No targets yet"
+            description="Add a target to start monitoring · Thêm máy chủ đích để bắt đầu thu thập dữ liệu giám sát."
+          />
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-muted uppercase tracking-wide border-b border-border">
-                <th className="py-2.5 px-4 font-medium">Name</th>
-                <th className="py-2.5 px-4 font-medium">Host</th>
-                <th className="py-2.5 px-4 font-medium">Protocol</th>
-                <th className="py-2.5 px-4 font-medium">Interval</th>
-                <th className="py-2.5 px-4 font-medium">Enabled</th>
-                <th className="py-2.5 px-4 font-medium text-right">Actions</th>
+              <tr className="text-left text-xs text-muted uppercase tracking-widest border-b border-border">
+                <th className="py-2.5 px-4 font-semibold">Name</th>
+                <th className="py-2.5 px-4 font-semibold">Host</th>
+                <th className="py-2.5 px-4 font-semibold">Protocol</th>
+                <th className="py-2.5 px-4 font-semibold">Interval</th>
+                <th className="py-2.5 px-4 font-semibold">Enabled</th>
+                <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {targets.map((t) => (
-                <tr key={t.id} className="border-b border-border last:border-0">
+                <tr key={t.id} className="border-b border-border last:border-0 hover:bg-panel-alt/50 transition-colors">
                   <td className="py-2.5 px-4">
                     <div className="flex items-center gap-2">
-                      {t.name}
+                      <span className="font-medium text-text">{t.name}</span>
                       {t.is_gateway && (
-                        <span className="text-[10px] uppercase tracking-wide text-accent bg-accent-soft rounded-full px-1.5 py-0.5">
+                        <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-accent bg-accent-soft border border-accent/20 rounded-full px-2 py-0.5">
                           gateway
                         </span>
                       )}
@@ -75,12 +80,12 @@ export function Targets() {
                     {t.host}
                     {t.protocol === "tcp" && t.port ? `:${t.port}` : ""}
                   </td>
-                  <td className="py-2.5 px-4 uppercase text-xs text-muted">{t.protocol}</td>
-                  <td className="py-2.5 px-4 font-mono">{t.interval_seconds}s</td>
+                  <td className="py-2.5 px-4 uppercase text-xs text-muted font-mono">{t.protocol}</td>
+                  <td className="py-2.5 px-4 font-mono font-tabular">{t.interval_seconds}s</td>
                   <td className="py-2.5 px-4">
                     <button
                       onClick={() => updateTarget(t.id, { enabled: !t.enabled })}
-                      className={`h-5 w-9 rounded-full transition-colors relative ${t.enabled ? "bg-accent" : "bg-border"}`}
+                      className={`h-5 w-9 rounded-full transition-all-fast relative ${t.enabled ? "bg-accent" : "bg-border"}`}
                       aria-label={t.enabled ? "Disable target" : "Enable target"}
                     >
                       <span
@@ -94,14 +99,14 @@ export function Targets() {
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => setEditing(t)}
-                        className="p-1.5 rounded-control text-muted hover:text-text hover:bg-panel-alt"
+                        className="p-1.5 rounded-control text-muted hover:text-text hover:bg-panel-alt transition-all-fast"
                         aria-label="Edit"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => setPendingDelete(t)}
-                        className="p-1.5 rounded-control text-muted hover:text-offline hover:bg-panel-alt"
+                        className="p-1.5 rounded-control text-muted hover:text-offline hover:bg-panel-alt transition-all-fast"
                         aria-label="Delete"
                       >
                         <Trash2 size={14} />
@@ -140,14 +145,17 @@ export function Targets() {
       )}
 
       {pendingDelete && (
-        <Modal title="Delete target" onClose={() => setPendingDelete(null)}>
+        <Modal title="Delete target · Xóa mục tiêu" onClose={() => setPendingDelete(null)}>
           <p className="text-sm text-text">
-            Delete <span className="font-medium">{pendingDelete.name}</span>? Its measurement history will also be removed.
+            Delete <span className="font-semibold text-text">{pendingDelete.name}</span>? Its measurement history will also be removed.
           </p>
-          <div className="mt-4 flex justify-end gap-2">
+          <p className="text-xs text-muted mt-1">
+            Toàn bộ dữ liệu đo lường liên quan sẽ bị xóa vĩnh viễn khỏi cơ sở dữ liệu.
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
             <button
               onClick={() => setPendingDelete(null)}
-              className="px-3 py-1.5 text-sm rounded-control border border-border text-muted hover:text-text"
+              className="px-3.5 py-1.5 text-sm rounded-control border border-border text-muted hover:text-text hover:bg-panel-alt transition-all-fast"
             >
               Cancel
             </button>
@@ -156,7 +164,7 @@ export function Targets() {
                 await deleteTarget(pendingDelete.id);
                 setPendingDelete(null);
               }}
-              className="px-3 py-1.5 text-sm rounded-control bg-offline text-white hover:opacity-90"
+              className="px-3.5 py-1.5 text-sm rounded-control bg-offline text-white hover:opacity-90 font-medium transition-all-fast shadow-sm"
             >
               Delete
             </button>
@@ -197,18 +205,19 @@ function TargetFormModal({
 
   return (
     <Modal title={title} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
-          <label className={labelClass}>Name</label>
+          <label className={labelClass}>Name (Tên gợi nhớ)</label>
           <input
             className={inputClass}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="e.g. Gateway, Cloudflare DNS"
             required
           />
         </div>
         <div>
-          <label className={labelClass}>Hostname or IP</label>
+          <label className={labelClass}>Hostname or IP (Tên miền hoặc Địa chỉ IP)</label>
           <input
             className={inputClass}
             value={form.host}
@@ -219,19 +228,19 @@ function TargetFormModal({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={labelClass}>Protocol</label>
+            <label className={labelClass}>Protocol (Giao thức)</label>
             <select
               className={inputClass}
               value={form.protocol}
               onChange={(e) => setForm({ ...form, protocol: e.target.value as "icmp" | "tcp" })}
             >
-              <option value="icmp">ICMP</option>
-              <option value="tcp">TCP</option>
+              <option value="icmp">ICMP (Ping)</option>
+              <option value="tcp">TCP (Port Check)</option>
             </select>
           </div>
           {form.protocol === "tcp" && (
             <div>
-              <label className={labelClass}>Port</label>
+              <label className={labelClass}>Port (Cổng kết nối)</label>
               <input
                 type="number"
                 min={1}
@@ -244,7 +253,7 @@ function TargetFormModal({
           )}
         </div>
         <div>
-          <label className={labelClass}>Interval (seconds)</label>
+          <label className={labelClass}>Interval (Chu kỳ kiểm tra - giây)</label>
           <input
             type="number"
             min={1}
@@ -255,34 +264,40 @@ function TargetFormModal({
           />
         </div>
         <div className="flex items-center gap-4 pt-1">
-          <label className="flex items-center gap-2 text-sm text-text">
+          <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
             <input
               type="checkbox"
               checked={form.is_gateway}
               onChange={(e) => setForm({ ...form, is_gateway: e.target.checked })}
+              className="rounded"
             />
-            Gateway target
+            Gateway target (Mục tiêu Gateway)
           </label>
-          <label className="flex items-center gap-2 text-sm text-text">
+          <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
             <input
               type="checkbox"
               checked={form.enabled}
               onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
+              className="rounded"
             />
-            Enabled
+            Enabled (Kích hoạt)
           </label>
         </div>
 
-        {error && <p className="text-xs text-offline">{error}</p>}
+        {error && <p className="text-xs text-offline font-medium">{error}</p>}
 
-        <div className="pt-2 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-control border border-border text-muted hover:text-text">
+        <div className="pt-3 flex justify-end gap-2 border-t border-border mt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3.5 py-1.5 text-sm rounded-control border border-border text-muted hover:text-text hover:bg-panel-alt transition-all-fast"
+          >
             Cancel
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="px-3 py-1.5 text-sm rounded-control bg-accent text-bg font-medium hover:opacity-90 disabled:opacity-50"
+            className="px-4 py-1.5 text-sm rounded-control bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium shadow-sm hover:shadow-md transition-all-fast disabled:opacity-50"
           >
             {submitting ? "Saving…" : "Save"}
           </button>

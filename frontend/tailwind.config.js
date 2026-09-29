@@ -20,7 +20,7 @@ export default {
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
-        mono: ["'JetBrains Mono'", "'SFMono-Regular'", "Consolas", "monospace"],
+        mono: ["'Fira Code'", "monospace"],
       },
       borderRadius: {
         card: "10px",

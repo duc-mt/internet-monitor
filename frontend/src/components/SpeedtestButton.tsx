@@ -28,7 +28,7 @@ export function SpeedtestButton() {
       <button
         onClick={run}
         disabled={state === "running"}
-        className="flex items-center gap-1.5 text-xs rounded-control border border-border px-2.5 py-1.5 text-muted hover:text-text hover:border-accent disabled:opacity-60"
+        className="flex items-center gap-1.5 text-xs rounded-control border border-border bg-panel px-3 py-1.5 text-muted hover:text-text hover:border-accent hover:shadow-sm transition-all-fast disabled:opacity-60"
       >
         {state === "running" ? <Loader2 size={13} className="animate-spin" /> : <Gauge size={13} />}
         {state === "running" ? "Testing…" : "Run speed test"}

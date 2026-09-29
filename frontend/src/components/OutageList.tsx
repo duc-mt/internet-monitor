@@ -8,7 +8,7 @@ function isSleepGap(o: Outage): boolean {
 
 export function OutageList({ outages, compact = false }: { outages: Outage[]; compact?: boolean }) {
   if (outages.length === 0) {
-    return <EmptyState title="No outages recorded" description="Nice and stable so far." />;
+    return <EmptyState title="No outages recorded" description="Nice and stable so far · Kết nối mạng ổn định, chưa ghi nhận gián đoạn." />;
   }
 
   const rows = compact ? outages.slice(0, 5) : outages;
@@ -17,34 +17,34 @@ export function OutageList({ outages, compact = false }: { outages: Outage[]; co
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-xs text-muted uppercase tracking-wide border-b border-border">
-            <th className="py-2 pr-3 font-medium">Type</th>
-            <th className="py-2 pr-3 font-medium">Started</th>
-            <th className="py-2 pr-3 font-medium">Duration</th>
-            <th className="py-2 pr-3 font-medium">Affected targets</th>
-            <th className="py-2 pr-3 font-medium">Failed checks</th>
+          <tr className="text-left text-xs text-muted uppercase tracking-widest border-b border-border">
+            <th className="py-2.5 pr-3 font-semibold">Type</th>
+            <th className="py-2.5 pr-3 font-semibold">Started</th>
+            <th className="py-2.5 pr-3 font-semibold">Duration</th>
+            <th className="py-2.5 pr-3 font-semibold">Affected targets</th>
+            <th className="py-2.5 pr-3 font-semibold">Failed checks</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((o) => {
             const sleepGap = isSleepGap(o);
             return (
-              <tr key={o.id} className="border-b border-border last:border-0">
+              <tr key={o.id} className="border-b border-border last:border-0 hover:bg-panel-alt/50 transition-colors">
                 <td className="py-2.5 pr-3">
                   {sleepGap ? (
-                    <span className="inline-flex items-center rounded-full bg-panel-alt text-muted text-[11px] px-2 py-0.5">
+                    <span className="inline-flex items-center rounded-full bg-panel-alt border border-border text-muted font-mono font-medium text-[11px] px-2.5 py-0.5">
                       System sleep
                     </span>
                   ) : (
-                    <span className="inline-flex items-center rounded-full border border-offline text-offline text-[11px] px-2 py-0.5">
+                    <span className="inline-flex items-center rounded-full border border-offline/40 bg-offline/10 text-offline font-mono font-medium text-[11px] px-2.5 py-0.5">
                       Outage
                     </span>
                   )}
                 </td>
-                <td className="py-2.5 pr-3 font-mono text-xs">{formatTimestamp(o.started_at)}</td>
+                <td className="py-2.5 pr-3 font-mono text-xs text-muted">{formatTimestamp(o.started_at)}</td>
                 <td className="py-2.5 pr-3 font-mono font-tabular">
                   {o.is_active ? (
-                    <span className="text-offline font-medium">ongoing</span>
+                    <span className="text-offline font-semibold">ongoing</span>
                   ) : (
                     formatDuration(o.duration_seconds)
                   )}

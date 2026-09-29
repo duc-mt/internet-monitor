@@ -22,7 +22,7 @@ export function QualityBadge({ quality }: { quality: Quality }) {
   const color = QUALITY_COLOR[quality];
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
+      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-mono font-medium tracking-wide shadow-sm"
       style={{ borderColor: color, color }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
