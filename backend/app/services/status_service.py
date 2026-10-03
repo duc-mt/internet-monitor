@@ -20,6 +20,8 @@ async def compute_status(
 
     target_statuses: list[TargetStatus] = []
     reachable_count = 0
+    external_reachable_count = 0
+    external_target_count = 0
     have_any_measurement = bool(latest_by_target)
 
     headline_latencies: list[float] = []
@@ -30,6 +32,10 @@ async def compute_status(
         reachable = bool(m and m.success)
         if reachable:
             reachable_count += 1
+        if not t.is_gateway:
+            external_target_count += 1
+            if reachable:
+                external_reachable_count += 1
         target_statuses.append(
             TargetStatus(
                 target_id=t.id,
@@ -48,7 +54,12 @@ async def compute_status(
 
     # Assume online until we have evidence otherwise (avoids a false
     # "Offline" flash during the first few seconds after startup).
-    online = True if not have_any_measurement else reachable_count > 0
+    if not have_any_measurement:
+        online = True
+    elif external_target_count > 0:
+        online = external_reachable_count > 0
+    else:
+        online = reachable_count > 0
 
     avg_latency = round(sum(headline_latencies) / len(headline_latencies), 2) if headline_latencies else None
     avg_loss = round(sum(headline_losses) / len(headline_losses), 2) if headline_losses else None

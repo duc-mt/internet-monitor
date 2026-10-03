@@ -113,6 +113,8 @@ async def _run_diagnostic_traceroute(hosts: list[str]) -> None:
     except FileNotFoundError:
         logger.warning("Traceroute tool not found on this system. Skipping diagnostic.")
     except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
         logger.warning(f"Diagnostic traceroute to {host} timed out.")
     except Exception as e:
         logger.warning(f"Diagnostic traceroute to {host} failed: {e}")

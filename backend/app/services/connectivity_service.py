@@ -13,7 +13,7 @@ import logging
 
 import aiosqlite
 
-from app.database import measurements_repo
+from app.database import measurements_repo, targets_repo
 from app.models.settings import AppSettings
 from app.services import notification_service
 
@@ -25,14 +25,24 @@ _previous_online: bool | None = None
 async def evaluate(conn: aiosqlite.Connection, settings: AppSettings) -> bool:
     """Returns the current online state, having fired a notification on transition."""
     global _previous_online
+    targets = await targets_repo.list_targets(conn, enabled_only=True)
+    gateway_ids = {t.id for t in targets if t.is_gateway}
     latest = await measurements_repo.latest_measurements_all(conn)
-    online = any(m.success for m in latest) if latest else True  # no data yet: assume fine
+
+    # Exclude gateway targets from internet reachability check when external targets exist
+    external_measurements = [m for m in latest if m.target_id not in gateway_ids]
+    if external_measurements:
+        online = any(m.success for m in external_measurements)
+    elif latest:
+        online = any(m.success for m in latest)
+    else:
+        online = True  # no data yet: assume fine
 
     if _previous_online is not None and online != _previous_online:
         if not online and settings.notifications.on_offline:
             await notification_service.send(
                 "Internet connection lost",
-                "All monitored targets stopped responding.",
+                "All monitored external targets stopped responding.",
                 urgency="critical",
                 key="global_offline",
             )

@@ -61,9 +61,17 @@ describe("Dashboard", () => {
     vi.mocked(api.listOutages).mockResolvedValue([]);
   });
 
-  it("shows a loading state before data arrives", () => {
+  it("shows a loading state before data arrives", async () => {
+    let resolveStatus!: (value: StatusResponse) => void;
+    vi.mocked(api.getStatus).mockReturnValue(
+      new Promise((resolve) => {
+        resolveStatus = resolve;
+      })
+    );
     renderDashboard();
     expect(screen.getByText(/connecting/i)).toBeInTheDocument();
+    resolveStatus(mockStatus);
+    await waitFor(() => expect(screen.queryByText(/connecting/i)).not.toBeInTheDocument());
   });
 
   it("renders status once loaded", async () => {
