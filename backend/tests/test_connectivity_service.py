@@ -157,3 +157,38 @@ async def test_respects_disabled_notification_preference(db, monkeypatch):
     await connectivity_service.evaluate(db, settings)
 
     assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_gateway_reachable_does_not_mask_external_offline(db):
+    gateway = await targets_repo.create_target(db, TargetCreate(name="Gateway", host="192.168.1.1", is_gateway=True))
+    dns = await targets_repo.create_target(db, TargetCreate(name="DNS", host="8.8.8.8", is_gateway=False))
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Gateway is reachable (LAN is up)
+    await measurements_repo.insert_measurement(
+        db,
+        MeasurementCreate(
+            target_id=gateway.id,
+            timestamp=now,
+            latency_ms=1.0,
+            packet_loss=0.0,
+            jitter_ms=None,
+            success=True,
+        ),
+    )
+    # External target failed (Internet is down)
+    await measurements_repo.insert_measurement(
+        db,
+        MeasurementCreate(
+            target_id=dns.id,
+            timestamp=now,
+            latency_ms=None,
+            packet_loss=100.0,
+            jitter_ms=None,
+            success=False,
+        ),
+    )
+
+    online = await connectivity_service.evaluate(db, AppSettings())
+    assert online is False

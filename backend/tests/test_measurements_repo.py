@@ -122,3 +122,65 @@ async def test_measurements_cascade_delete_with_target(db):
     await targets_repo.delete_target(db, target.id)
     remaining = await measurements_repo.list_measurements(db, target_id=target.id)
     assert remaining == []
+
+
+@pytest.mark.asyncio
+async def test_downsample_older_than_aggregates_and_preserves_on_recurring_runs(db):
+    target = await targets_repo.create_target(db, TargetCreate(name="DNS", host="8.8.8.8"))
+    old_time_1 = (datetime.now(timezone.utc) - timedelta(days=10)).replace(minute=5, second=0).isoformat()
+    old_time_2 = (datetime.now(timezone.utc) - timedelta(days=10)).replace(minute=35, second=0).isoformat()
+    recent_time = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+
+    # Insert two measurements in the same hour bucket 10 days ago
+    await measurements_repo.insert_measurement(
+        db,
+        MeasurementCreate(
+            target_id=target.id,
+            timestamp=old_time_1,
+            latency_ms=20.0,
+            packet_loss=0.0,
+            jitter_ms=2.0,
+            success=True,
+        ),
+    )
+    await measurements_repo.insert_measurement(
+        db,
+        MeasurementCreate(
+            target_id=target.id,
+            timestamp=old_time_2,
+            latency_ms=40.0,
+            packet_loss=0.0,
+            jitter_ms=4.0,
+            success=True,
+        ),
+    )
+    # Insert one recent measurement that should not be touched
+    await measurements_repo.insert_measurement(
+        db,
+        MeasurementCreate(
+            target_id=target.id,
+            timestamp=recent_time,
+            latency_ms=15.0,
+            packet_loss=0.0,
+            jitter_ms=1.0,
+            success=True,
+        ),
+    )
+
+    # First downsample run (7 days cutoff)
+    count = await measurements_repo.downsample_older_than(db, days_old=7)
+    assert count == 1
+
+    rows = await measurements_repo.list_measurements(db, target_id=target.id)
+    assert len(rows) == 2  # 1 recent + 1 downsampled
+    downsampled = [r for r in rows if r.error == "Downsampled"]
+    assert len(downsampled) == 1
+    assert downsampled[0].latency_ms == 30.0  # avg of 20 and 40
+
+    # Second downsample run (simulating recurring hourly job)
+    count_second = await measurements_repo.downsample_older_than(db, days_old=7)
+    assert count_second == 0  # No new raw rows to downsample
+
+    rows_after = await measurements_repo.list_measurements(db, target_id=target.id)
+    assert len(rows_after) == 2  # Downsampled row MUST NOT be deleted
+    assert any(r.error == "Downsampled" for r in rows_after)

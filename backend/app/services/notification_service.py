@@ -26,6 +26,7 @@ flapping metric doesn't spam five notifications a minute.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import shutil
 import sys
@@ -152,7 +153,12 @@ async def send(
                 stdout=DEVNULL,
                 stderr=DEVNULL,
             )
-        await proc.wait()
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=5.0)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            logger.warning("Notification subprocess timed out")
     except OSError as exc:
         logger.warning("Failed to send desktop notification: %s", exc)
 

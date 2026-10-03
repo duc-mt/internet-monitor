@@ -171,3 +171,14 @@ def test_export_report_json(client):
     assert resp.status_code == 200
     body = resp.json()
     assert "statistics" in body and "outages" in body
+
+
+def test_speedtest_endpoint_rejects_concurrent_runs_with_409(client, monkeypatch):
+    import app.api.speedtest as speedtest_module
+
+    # Mock lock being already held
+    monkeypatch.setattr(speedtest_module._speedtest_lock, "locked", lambda: True)
+
+    resp = client.post("/api/speedtest")
+    assert resp.status_code == 409
+    assert "already in progress" in resp.json()["detail"]

@@ -353,3 +353,43 @@ async def test_never_raises_on_unexpected_error(monkeypatch):
     monkeypatch.setattr(network_info, "_run", boom)
     name = await network_info.get_network_name(force=True)
     assert name is None
+
+
+@pytest.mark.asyncio
+async def test_get_wan_ip_valid(monkeypatch):
+    import io
+    import urllib.request
+
+    class FakeResponse(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    def fake_urlopen(req, timeout=5.0):
+        return FakeResponse(b"203.0.113.195\n")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    ip = await network_info.get_wan_ip()
+    assert ip == "203.0.113.195"
+
+
+@pytest.mark.asyncio
+async def test_get_wan_ip_rejects_html_or_invalid_string(monkeypatch):
+    import io
+    import urllib.request
+
+    class FakeResponse(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    def fake_urlopen(req, timeout=5.0):
+        return FakeResponse(b"<html><head><title>Login</title></head><body>Captive Portal</body></html>")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    ip = await network_info.get_wan_ip()
+    assert ip is None

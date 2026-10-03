@@ -156,8 +156,9 @@ async def delete_older_than(conn: aiosqlite.Connection, retention_days: int) -> 
 
 async def downsample_older_than(conn: aiosqlite.Connection, days_old: int = 7) -> int:
     """
-    Downsamples measurements older than `days_old` into 1-hour buckets to save space.
-    Leaves data newer than `days_old` at high resolution (e.g. 5 seconds).
+    Downsamples raw measurements older than `days_old` into 1-hour buckets to save space.
+    Leaves data newer than `days_old` at high resolution (e.g. 5 seconds), and preserves
+    already downsampled hourly rows without data loss on recurring runs.
     """
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days_old)).isoformat()
 
@@ -171,9 +172,8 @@ async def downsample_older_than(conn: aiosqlite.Connection, days_old: int = 7) -
             MAX(success) AS success,
             MAX(network_name) AS network_name
         FROM measurements
-        WHERE timestamp < ?
+        WHERE timestamp < ? AND (error IS NULL OR error != 'Downsampled')
         GROUP BY target_id, hour_bucket
-        HAVING COUNT(*) > 1
     """
 
     async with write_transaction() as tx:
@@ -183,8 +183,10 @@ async def downsample_older_than(conn: aiosqlite.Connection, days_old: int = 7) -
         if not rows:
             return 0
 
-        # Delete the fine-grained rows that we are about to replace
-        await tx.execute("DELETE FROM measurements WHERE timestamp < ?", (cutoff,))
+        # Delete only raw (non-downsampled) rows older than cutoff
+        await tx.execute(
+            "DELETE FROM measurements WHERE timestamp < ? AND (error IS NULL OR error != 'Downsampled')", (cutoff,)
+        )
 
         # Insert the downsampled hourly rows
         insert_query = """
@@ -195,9 +197,9 @@ async def downsample_older_than(conn: aiosqlite.Connection, days_old: int = 7) -
             (
                 row["target_id"],
                 row["hour_bucket"],
-                row["latency_ms"],
-                row["packet_loss"],
-                row["jitter_ms"],
+                round(row["latency_ms"], 2) if row["latency_ms"] is not None else None,
+                round(row["packet_loss"], 2) if row["packet_loss"] is not None else 0.0,
+                round(row["jitter_ms"], 2) if row["jitter_ms"] is not None else None,
                 row["success"],
                 "Downsampled",  # indicate this is an aggregated row
                 row["network_name"],
