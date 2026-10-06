@@ -16,8 +16,8 @@ type State =
   | { status: "done"; result: TracerouteResult };
 
 const SCOPE_LABEL: Record<HopScope, { label: string; className: string }> = {
-  private: { label: "LAN", className: "text-accent bg-accent-soft border-accent/20" },
-  cgnat: { label: "ISP · CGNAT", className: "text-degraded bg-degraded/10 border-degraded/20" },
+  private: { label: "LAN", className: "text-accent bg-accent-soft border-border" },
+  cgnat: { label: "ISP · CGNAT", className: "text-degraded bg-degraded-soft border-border" },
   public: { label: "Internet", className: "text-muted bg-panel-alt border-border" },
   unknown: { label: "—", className: "text-muted border-transparent" },
 };
@@ -84,7 +84,7 @@ export function TracerouteModal({ target, onClose }: { target: TraceTarget; onCl
       )}
 
       {state.status === "error" && (
-        <div className="mt-4 rounded-control border border-offline/30 bg-offline/10 px-3 py-2.5 text-sm text-offline" role="alert">
+        <div className="mt-4 rounded-control border border-border bg-offline-soft px-3 py-2.5 text-sm text-offline" role="alert">
           {state.message}
         </div>
       )}
@@ -92,7 +92,7 @@ export function TracerouteModal({ target, onClose }: { target: TraceTarget; onCl
       {state.status === "done" && (
         <>
           {state.result.timed_out && (
-            <div className="mt-4 rounded-control border border-degraded/30 bg-degraded/10 px-3 py-2 text-xs text-degraded font-medium">
+            <div className="mt-4 rounded-control border border-border bg-degraded-soft px-3 py-2 text-xs text-degraded font-medium">
               Time budget exceeded, showing the hops resolved so far · Hết thời gian, chỉ hiển thị các hop đã dò được.
             </div>
           )}

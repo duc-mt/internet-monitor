@@ -16,6 +16,10 @@
   --color-degraded: #fbbf24;
   --color-offline: #f87171;
   --color-unknown: #64748b;
+  /* Soft tints for banners/badges (Tailwind can't apply /opacity to var() colors) */
+  --color-healthy-soft: rgba(52, 211, 153, 0.12);
+  --color-degraded-soft: rgba(251, 191, 36, 0.12);
+  --color-offline-soft: rgba(248, 113, 113, 0.12);
 }
 
 :root.light {
@@ -32,6 +36,9 @@
   --color-degraded: #d97706;
   --color-offline: #dc2626;
   --color-unknown: #64748b;
+  --color-healthy-soft: rgba(5, 150, 105, 0.12);
+  --color-degraded-soft: rgba(217, 119, 6, 0.12);
+  --color-offline-soft: rgba(220, 38, 38, 0.1);
 }
 
 * {

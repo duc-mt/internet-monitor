@@ -16,6 +16,9 @@ export default {
         healthy: "var(--color-healthy)",
         degraded: "var(--color-degraded)",
         offline: "var(--color-offline)",
+        "healthy-soft": "var(--color-healthy-soft)",
+        "degraded-soft": "var(--color-degraded-soft)",
+        "offline-soft": "var(--color-offline-soft)",
         unknown: "var(--color-unknown)",
       },
       fontFamily: {
