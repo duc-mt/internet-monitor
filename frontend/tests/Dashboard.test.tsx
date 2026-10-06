@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { Dashboard } from "../src/pages/Dashboard";
 import { ThemeProvider } from "../src/hooks/useTheme";
 import { api } from "../src/services/api";
-import type { StatusResponse, Target } from "../src/types";
+import type { AppSettings, StatisticsResponse, StatusResponse, Target } from "../src/types";
 
 vi.mock("../src/services/api", () => ({
   api: {
@@ -12,6 +12,8 @@ vi.mock("../src/services/api", () => ({
     listTargets: vi.fn(),
     listMeasurements: vi.fn(),
     listOutages: vi.fn(),
+    getStatistics: vi.fn(),
+    getSettings: vi.fn(),
   },
   ApiError: class ApiError extends Error {
     status: number;
@@ -43,6 +45,14 @@ const mockTargets: Target[] = [
   { id: 1, name: "Gateway", host: "192.168.1.1", protocol: "icmp", port: null, is_gateway: true, enabled: true, interval_seconds: 5, created_at: "2026-01-01T00:00:00Z" },
 ];
 
+const mockMonthStats = {
+  uptime_pct: 99.98,
+  downtime_seconds: 300,
+  effective_monitored_seconds: 30 * 86400,
+} as StatisticsResponse;
+
+const mockSettings = { sla_target_pct: 99.9 } as AppSettings;
+
 function renderDashboard() {
   return render(
     <ThemeProvider>
@@ -59,6 +69,8 @@ describe("Dashboard", () => {
     vi.mocked(api.listTargets).mockResolvedValue(mockTargets);
     vi.mocked(api.listMeasurements).mockResolvedValue([]);
     vi.mocked(api.listOutages).mockResolvedValue([]);
+    vi.mocked(api.getStatistics).mockResolvedValue(mockMonthStats);
+    vi.mocked(api.getSettings).mockResolvedValue(mockSettings);
   });
 
   it("shows a loading state before data arrives", async () => {
@@ -85,6 +97,13 @@ describe("Dashboard", () => {
     vi.mocked(api.getStatus).mockRejectedValue(new Error("Could not reach the Internet Monitor backend."));
     renderDashboard();
     await waitFor(() => expect(screen.getByText(/could not reach/i)).toBeInTheDocument());
+  });
+
+  it("shows the SLA error budget for the last 30 days", async () => {
+    renderDashboard();
+    await waitFor(() => expect(screen.getByText("WITHIN SLA")).toBeInTheDocument());
+    expect(api.getStatistics).toHaveBeenCalledWith({ range: "30d" });
+    expect(screen.getByText("43m 12s")).toBeInTheDocument();
   });
 
   it("flags an active outage in the subheading", async () => {

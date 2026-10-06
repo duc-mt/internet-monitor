@@ -49,3 +49,8 @@ class StatisticsResponse(BaseModel):
     outage_count: int
     longest_outage_seconds: float | None
     monitoring_duration_seconds: float
+    # Inputs of uptime_pct, exposed so clients can derive an SLA error budget:
+    # real downtime inside the range, and the time actually observed (data
+    # coverage minus detected sleep gaps - the denominator of uptime_pct).
+    downtime_seconds: float = 0.0
+    effective_monitored_seconds: float = 0.0

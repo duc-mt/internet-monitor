@@ -83,6 +83,8 @@ export interface StatisticsResponse {
   outage_count: number;
   longest_outage_seconds: number | null;
   monitoring_duration_seconds: number;
+  downtime_seconds: number;
+  effective_monitored_seconds: number;
 }
 
 export type HopScope = "private" | "cgnat" | "public" | "unknown";
@@ -133,6 +135,7 @@ export interface AppSettings {
   packet_loss_warning_threshold_pct: number;
   outage_threshold_checks: number;
   outage_notify_min_duration_seconds: number;
+  sla_target_pct: number;
   notifications: NotificationPreferences;
   classification: ClassificationThresholds;
   data_retention_days: number;

@@ -88,6 +88,8 @@ async def test_compute_statistics_end_to_end(db):
 async def test_uptime_pct_is_none_with_no_data(db):
     stats = await statistics_service.compute_statistics(db, range_name="1h")
     assert stats.uptime_pct is None
+    assert stats.downtime_seconds == 0.0
+    assert stats.effective_monitored_seconds == 0.0
 
 
 @pytest.mark.asyncio
@@ -110,6 +112,8 @@ async def test_uptime_pct_is_100_with_no_outages(db):
 
     stats = await statistics_service.compute_statistics(db, range_name="1h", target_id=target.id)
     assert stats.uptime_pct == 100.0
+    assert stats.downtime_seconds == 0.0
+    assert stats.effective_monitored_seconds == pytest.approx(500.0, abs=1)
 
 
 @pytest.mark.asyncio
@@ -151,3 +155,7 @@ async def test_uptime_pct_counts_real_outage_but_not_sleep_gap(db):
     # effective_seconds = 1000 (raw span) - 300 (sleep) = 700
     # uptime_pct = 100 * (1 - 100/700) ~= 85.71
     assert stats.uptime_pct == pytest.approx(85.71, abs=0.5)
+    # The seconds behind that percentage are exposed for the SLA error budget:
+    # 100s real downtime, over 700s observed (the 300s sleep gap is excluded).
+    assert stats.downtime_seconds == pytest.approx(100.0, abs=1)
+    assert stats.effective_monitored_seconds == pytest.approx(700.0, abs=1)

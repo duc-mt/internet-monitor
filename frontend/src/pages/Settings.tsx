@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useSettings } from "../hooks/useSettings";
 import { useTheme } from "../hooks/useTheme";
 import { LoadingState, ErrorState } from "../components/States";
+import { allowedDowntimeSeconds } from "../services/sla";
+import { formatDuration } from "../services/format";
 import type { AppSettings, Theme } from "../types";
 
 const inputClass =
@@ -129,6 +131,26 @@ export function Settings() {
               onChange={(e) => setForm({ ...form, outage_notify_min_duration_seconds: Number(e.target.value) })}
             />
           </Field>
+        </div>
+      </Section>
+
+      <Section
+        title="SLA target · Cam kết chất lượng dịch vụ"
+        description="Uptime promised in your ISP contract; drives the error budget on Dashboard and History · Mức uptime cam kết trong hợp đồng với ISP, dùng để tính ngân sách lỗi."
+      >
+        <div className="max-w-sm">
+          <Field label="SLA target (Mục tiêu uptime - %)">
+            <input
+              type="number" step="0.01" min={0.01} max={100} className={inputClass}
+              value={form.sla_target_pct}
+              onChange={(e) => setForm({ ...form, sla_target_pct: Number(e.target.value) })}
+            />
+          </Field>
+          {form.sla_target_pct > 0 && form.sla_target_pct <= 100 && (
+            <p className="text-xs text-muted mt-1.5 font-mono">
+              {form.sla_target_pct}% ≈ {formatDuration(allowedDowntimeSeconds(form.sla_target_pct))} downtime / 30 days
+            </p>
+          )}
         </div>
       </Section>
 

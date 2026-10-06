@@ -106,4 +106,6 @@ async def compute_statistics(
         outage_count=outage_agg.get("outage_count") or 0,
         longest_outage_seconds=outage_agg.get("longest"),
         monitoring_duration_seconds=duration_seconds,
+        downtime_seconds=round(real_downtime_seconds, 2),
+        effective_monitored_seconds=round(effective_seconds, 2),
     )

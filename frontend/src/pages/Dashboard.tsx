@@ -4,6 +4,7 @@ import { useStatus } from "../hooks/useStatus";
 import { usePolling } from "../hooks/usePolling";
 import { api } from "../services/api";
 import { StatCard } from "../components/StatCard";
+import { ErrorBudgetCard } from "../components/ErrorBudgetCard";
 import { QualityBadge } from "../components/QualityBadge";
 import { LatencyChart, type RangeMinutes } from "../components/LatencyChart";
 import { SpeedtestButton } from "../components/SpeedtestButton";
@@ -13,6 +14,7 @@ import { OutageList } from "../components/OutageList";
 import { LoadingState, ErrorState } from "../components/States";
 import { formatDuration, formatLatency, formatPct } from "../services/format";
 import { useTargets } from "../hooks/useTargets";
+import { useSettings } from "../hooks/useSettings";
 import type { TargetStatus } from "../types";
 
 export function Dashboard() {
@@ -29,6 +31,11 @@ export function Dashboard() {
 
   const outagesFetcher = useCallback(() => api.listOutages({ limit: 5 }), []);
   const { data: outages } = usePolling(outagesFetcher, 15000);
+
+  // SLAs are normally quoted per month, so the budget uses a rolling 30 days.
+  const { settings } = useSettings();
+  const budgetFetcher = useCallback(() => api.getStatistics({ range: "30d" }), []);
+  const { data: budgetStats } = usePolling(budgetFetcher, 60000);
 
   if (statusLoading && !status) return <LoadingState label="Connecting to Internet Monitor…" />;
   if (statusError && !status) return <ErrorState message={statusError} onRetry={refetchStatus} />;
@@ -80,6 +87,8 @@ export function Dashboard() {
           }
         />
       </div>
+
+      <ErrorBudgetCard stats={budgetStats} slaTargetPct={settings?.sla_target_pct ?? null} periodLabel="Last 30 days" />
 
       <LatencyChart
         measurements={measurements ?? []}

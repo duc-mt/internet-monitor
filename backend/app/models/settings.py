@@ -60,6 +60,16 @@ class AppSettings(BaseModel):
         ),
     )
 
+    sla_target_pct: float = Field(
+        default=99.9,
+        gt=0,
+        le=100,
+        description=(
+            "Uptime target from the ISP contract (e.g. 99.9). The dashboard turns it into an error budget: "
+            "the downtime allowed over the monitored period before the SLA is breached."
+        ),
+    )
+
     notifications: NotificationPreferences = Field(default_factory=NotificationPreferences)
     classification: ClassificationThresholds = Field(default_factory=ClassificationThresholds)
 
@@ -83,6 +93,7 @@ class AppSettingsUpdate(BaseModel):
     outage_threshold_checks: int | None = Field(default=None, ge=1, le=60)
     outage_notify_min_duration_seconds: int | None = None
     sleep_gap_threshold_seconds: int | None = Field(default=None, ge=10, le=3600)
+    sla_target_pct: float | None = Field(default=None, gt=0, le=100)
     notifications: NotificationPreferences | None = None
     classification: ClassificationThresholds | None = None
     data_retention_days: int | None = Field(default=None, ge=1, le=3650)

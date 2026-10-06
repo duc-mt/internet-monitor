@@ -102,6 +102,28 @@ def test_settings_update_nested_notifications(client):
     assert resp.json()["notifications"]["on_online"] is True
 
 
+def test_settings_sla_target_defaults_and_round_trips(client):
+    assert client.get("/api/settings").json()["sla_target_pct"] == 99.9
+
+    resp = client.put("/api/settings", json={"sla_target_pct": 99.5})
+    assert resp.status_code == 200
+    assert resp.json()["sla_target_pct"] == 99.5
+    # persisted, not just echoed back
+    assert client.get("/api/settings").json()["sla_target_pct"] == 99.5
+
+
+def test_settings_sla_target_rejects_out_of_range_values(client):
+    for bad in (0, -1, 100.1, 250):
+        assert client.put("/api/settings", json={"sla_target_pct": bad}).status_code == 422
+    assert client.get("/api/settings").json()["sla_target_pct"] == 99.9
+
+
+def test_statistics_exposes_downtime_and_monitored_seconds(client):
+    body = client.get("/api/statistics").json()
+    assert body["downtime_seconds"] == 0.0
+    assert body["effective_monitored_seconds"] == 0.0
+
+
 def test_statistics_requires_bounds_for_custom_range(client):
     resp = client.get("/api/statistics", params={"range": "custom"})
     assert resp.status_code == 400

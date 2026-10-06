@@ -3,6 +3,8 @@ import { Download } from "lucide-react";
 import { api } from "../services/api";
 import { usePolling } from "../hooks/usePolling";
 import { useTargets } from "../hooks/useTargets";
+import { useSettings } from "../hooks/useSettings";
+import { ErrorBudgetCard } from "../components/ErrorBudgetCard";
 import { LatencyChart } from "../components/LatencyChart";
 import { OutageList } from "../components/OutageList";
 import { LoadingState, ErrorState } from "../components/States";
@@ -26,6 +28,7 @@ const HISTORY_CHART_RANGES = [
 
 export function History() {
   const { targets } = useTargets();
+  const { settings } = useSettings();
   const [range, setRange] = useState<RangeName>("24h");
   const [targetId, setTargetId] = useState<number | undefined>(undefined);
   const [customStart, setCustomStart] = useState("");
@@ -145,6 +148,12 @@ export function History() {
           <Stat label="Samples" value={String(stats.sample_count)} />
         </div>
       )}
+
+      <ErrorBudgetCard
+        stats={stats}
+        slaTargetPct={settings?.sla_target_pct ?? null}
+        periodLabel={RANGE_TABS.find((tab) => tab.value === range)?.label ?? "Selected range"}
+      />
 
       <LatencyChart
         measurements={measurements ?? []}
