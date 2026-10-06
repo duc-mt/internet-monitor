@@ -9,6 +9,7 @@ import type {
   StatusResponse,
   Target,
   TargetInput,
+  TracerouteResult,
 } from "../types";
 
 const BASE = "/api";
@@ -56,6 +57,9 @@ export const api = {
   updateTarget: (id: number, data: Partial<TargetInput>) =>
     request<Target>(`/targets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteTarget: (id: number) => request<void>(`/targets/${id}`, { method: "DELETE" }),
+
+  // Manual only (can take up to ~a minute) - never called on a timer.
+  runTraceroute: (id: number) => request<TracerouteResult>(`/targets/${id}/traceroute`, { method: "POST" }),
 
   listMeasurements: (params: { target_id?: number; start?: string; end?: string; limit?: number } = {}) =>
     request<Measurement[]>(`/measurements${toQuery(params)}`),

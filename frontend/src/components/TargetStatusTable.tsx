@@ -1,9 +1,17 @@
+import { Route } from "lucide-react";
 import type { TargetStatus } from "../types";
 import { formatLatency, formatPct, formatClock } from "../services/format";
 import { StatusDot } from "./QualityBadge";
 import { EmptyState } from "./States";
 
-export function TargetStatusTable({ targets }: { targets: TargetStatus[] }) {
+export function TargetStatusTable({
+  targets,
+  onTrace,
+}: {
+  targets: TargetStatus[];
+  /** When provided, each row gets a "Traceroute" action button. */
+  onTrace?: (target: TargetStatus) => void;
+}) {
   if (targets.length === 0) {
     return (
       <EmptyState
@@ -22,7 +30,12 @@ export function TargetStatusTable({ targets }: { targets: TargetStatus[] }) {
             <th className="py-2.5 pr-3">Host</th>
             <th className="py-2.5 pr-3">Latency</th>
             <th className="py-2.5 pr-3">Loss</th>
-            <th className="py-2.5 pr-3 rounded-tr-md">Last check</th>
+            <th className={`py-2.5 pr-3 ${onTrace ? "" : "rounded-tr-md"}`}>Last check</th>
+            {onTrace && (
+              <th className="py-2.5 pr-3 rounded-tr-md">
+                <span className="sr-only">Actions</span>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -38,6 +51,18 @@ export function TargetStatusTable({ targets }: { targets: TargetStatus[] }) {
               <td className="py-2.5 pr-3 font-mono font-tabular">{formatLatency(t.latency_ms)}</td>
               <td className="py-2.5 pr-3 font-mono font-tabular">{formatPct(t.packet_loss)}</td>
               <td className="py-2.5 pr-3 text-xs text-muted font-mono">{formatClock(t.last_checked)}</td>
+              {onTrace && (
+                <td className="py-2.5 pr-3 text-right">
+                  <button
+                    onClick={() => onTrace(t)}
+                    className="p-1.5 rounded-control text-muted hover:text-accent hover:bg-panel-alt transition-all-fast"
+                    aria-label={`Traceroute to ${t.name}`}
+                    title="Traceroute"
+                  >
+                    <Route size={14} />
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

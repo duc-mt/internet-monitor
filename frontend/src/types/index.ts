@@ -85,6 +85,28 @@ export interface StatisticsResponse {
   monitoring_duration_seconds: number;
 }
 
+export type HopScope = "private" | "cgnat" | "public" | "unknown";
+
+export interface TracerouteHop {
+  hop: number;
+  address: string | null;
+  rtts_ms: (number | null)[];
+  avg_ms: number | null;
+  loss_pct: number;
+  scope: HopScope;
+  extra_addresses: string[];
+}
+
+export interface TracerouteResult {
+  target_id: number;
+  target_name: string;
+  host: string;
+  hops: TracerouteHop[];
+  raw: string;
+  timed_out: boolean;
+  elapsed_seconds: number;
+}
+
 export interface ClassificationThresholds {
   excellent_latency_ms: number;
   excellent_packet_loss_pct: number;

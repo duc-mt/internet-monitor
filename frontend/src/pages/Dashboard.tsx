@@ -8,15 +8,18 @@ import { QualityBadge } from "../components/QualityBadge";
 import { LatencyChart, type RangeMinutes } from "../components/LatencyChart";
 import { SpeedtestButton } from "../components/SpeedtestButton";
 import { TargetStatusTable } from "../components/TargetStatusTable";
+import { TracerouteModal } from "../components/TracerouteModal";
 import { OutageList } from "../components/OutageList";
 import { LoadingState, ErrorState } from "../components/States";
 import { formatDuration, formatLatency, formatPct } from "../services/format";
 import { useTargets } from "../hooks/useTargets";
+import type { TargetStatus } from "../types";
 
 export function Dashboard() {
   const { data: status, error: statusError, loading: statusLoading, refetch: refetchStatus } = useStatus();
   const { targets } = useTargets();
   const [rangeMinutes, setRangeMinutes] = useState<RangeMinutes>(5);
+  const [tracing, setTracing] = useState<TargetStatus | null>(null);
 
   const measurementsFetcher = useCallback(() => {
     const start = new Date(Date.now() - rangeMinutes * 60_000).toISOString();
@@ -88,7 +91,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-card border border-border bg-panel p-5 shadow-sm transition-all-fast">
           <h3 className="text-sm font-semibold tracking-tight text-text mb-3">Target status · Trạng thái mục tiêu</h3>
-          <TargetStatusTable targets={status.targets} />
+          <TargetStatusTable targets={status.targets} onTrace={setTracing} />
         </div>
         <div className="rounded-card border border-border bg-panel p-5 shadow-sm transition-all-fast">
           <div className="flex items-center justify-between mb-3">
@@ -98,6 +101,13 @@ export function Dashboard() {
           <OutageList outages={outages ?? []} compact />
         </div>
       </div>
+
+      {tracing && (
+        <TracerouteModal
+          target={{ id: tracing.target_id, name: tracing.name, host: tracing.host }}
+          onClose={() => setTracing(null)}
+        />
+      )}
     </div>
   );
 }

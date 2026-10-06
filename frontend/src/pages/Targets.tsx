@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Route } from "lucide-react";
 import { useTargets } from "../hooks/useTargets";
 import { Modal } from "../components/Modal";
+import { TracerouteModal } from "../components/TracerouteModal";
 import { LoadingState, EmptyState } from "../components/States";
 import { ApiError } from "../services/api";
 import type { Target, TargetInput } from "../types";
@@ -25,6 +26,7 @@ export function Targets() {
   const [editing, setEditing] = useState<Target | null>(null);
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Target | null>(null);
+  const [tracing, setTracing] = useState<Target | null>(null);
 
   return (
     <div className="space-y-6">
@@ -98,6 +100,14 @@ export function Targets() {
                   <td className="py-2.5 px-4">
                     <div className="flex items-center justify-end gap-1">
                       <button
+                        onClick={() => setTracing(t)}
+                        className="p-1.5 rounded-control text-muted hover:text-accent hover:bg-panel-alt transition-all-fast"
+                        aria-label={`Traceroute to ${t.name}`}
+                        title="Traceroute"
+                      >
+                        <Route size={14} />
+                      </button>
+                      <button
                         onClick={() => setEditing(t)}
                         className="p-1.5 rounded-control text-muted hover:text-text hover:bg-panel-alt transition-all-fast"
                         aria-label="Edit"
@@ -143,6 +153,8 @@ export function Targets() {
           }}
         />
       )}
+
+      {tracing && <TracerouteModal target={tracing} onClose={() => setTracing(null)} />}
 
       {pendingDelete && (
         <Modal title="Delete target · Xóa mục tiêu" onClose={() => setPendingDelete(null)}>

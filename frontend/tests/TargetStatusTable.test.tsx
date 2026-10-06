@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { TargetStatusTable } from "../src/components/TargetStatusTable";
 import type { TargetStatus } from "../src/types";
 
@@ -20,6 +20,16 @@ describe("TargetStatusTable", () => {
     expect(screen.getByText("Cloudflare DNS")).toBeInTheDocument();
     expect(screen.getByText("192.168.1.1")).toBeInTheDocument();
     expect(screen.getByText("1.20 ms")).toBeInTheDocument();
+  });
+
+  it("offers a traceroute action per row only when a handler is provided", () => {
+    const { rerender } = render(<TargetStatusTable targets={sample} />);
+    expect(screen.queryByRole("button", { name: /traceroute to/i })).not.toBeInTheDocument();
+
+    const onTrace = vi.fn();
+    rerender(<TargetStatusTable targets={sample} onTrace={onTrace} />);
+    fireEvent.click(screen.getByRole("button", { name: "Traceroute to Cloudflare DNS" }));
+    expect(onTrace).toHaveBeenCalledWith(sample[1]);
   });
 
   it("renders a dash for unreachable targets with no latency", () => {

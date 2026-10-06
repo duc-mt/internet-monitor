@@ -182,3 +182,81 @@ def test_speedtest_endpoint_rejects_concurrent_runs_with_409(client, monkeypatch
     resp = client.post("/api/speedtest")
     assert resp.status_code == 409
     assert "already in progress" in resp.json()["detail"]
+
+
+def test_traceroute_unknown_target_404s(client):
+    assert client.post("/api/targets/99999/traceroute").status_code == 404
+
+
+def test_traceroute_returns_parsed_hops(client, monkeypatch):
+    from app.monitoring import traceroute
+
+    target = client.get("/api/targets").json()[0]
+
+    async def fake_run(host, **kwargs):
+        return traceroute.TracerouteResult(
+            host=host,
+            raw=" 1  192.168.1.1  1.0 ms  2.0 ms  *",
+            hops=[traceroute.Hop(hop=1, address="192.168.1.1", rtts_ms=[1.0, 2.0, None], scope="private")],
+        )
+
+    monkeypatch.setattr(traceroute, "run_traceroute", fake_run)
+    resp = client.post(f"/api/targets/{target['id']}/traceroute")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["target_id"] == target["id"]
+    assert body["host"] == target["host"]
+    assert body["timed_out"] is False
+    assert body["hops"] == [
+        {
+            "hop": 1,
+            "address": "192.168.1.1",
+            "rtts_ms": [1.0, 2.0, None],
+            "avg_ms": 1.5,
+            "loss_pct": 33.3,
+            "scope": "private",
+            "extra_addresses": [],
+        }
+    ]
+    assert "192.168.1.1" in body["raw"]
+
+
+def test_traceroute_503_when_binary_missing(client, monkeypatch):
+    from app.monitoring import traceroute
+
+    target = client.get("/api/targets").json()[0]
+
+    async def fake_run(host, **kwargs):
+        raise traceroute.TracerouteUnavailable("traceroute is not installed on this system")
+
+    monkeypatch.setattr(traceroute, "run_traceroute", fake_run)
+    resp = client.post(f"/api/targets/{target['id']}/traceroute")
+    assert resp.status_code == 503
+    assert "not installed" in resp.json()["detail"]
+
+
+def test_traceroute_409_when_already_running_for_that_target(client):
+    import app.api.targets as targets_module
+
+    target = client.get("/api/targets").json()[0]
+    targets_module._traces_in_flight.add(target["id"])
+    try:
+        resp = client.post(f"/api/targets/{target['id']}/traceroute")
+    finally:
+        targets_module._traces_in_flight.discard(target["id"])
+    assert resp.status_code == 409
+    assert "already in progress" in resp.json()["detail"]
+
+
+def test_traceroute_releases_the_in_flight_slot_after_a_failure(client, monkeypatch):
+    import app.api.targets as targets_module
+    from app.monitoring import traceroute
+
+    target = client.get("/api/targets").json()[0]
+
+    async def fake_run(host, **kwargs):
+        raise traceroute.TracerouteUnavailable("traceroute is not installed on this system")
+
+    monkeypatch.setattr(traceroute, "run_traceroute", fake_run)
+    client.post(f"/api/targets/{target['id']}/traceroute")
+    assert target["id"] not in targets_module._traces_in_flight

@@ -5,10 +5,12 @@ export function Modal({
   title,
   onClose,
   children,
+  size = "md",
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  size?: "md" | "xl";
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -19,7 +21,11 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-card border border-border bg-panel shadow-2xl transition-all-fast">
+      <div
+        className={`relative w-full ${
+          size === "xl" ? "max-w-3xl" : "max-w-md"
+        } rounded-card border border-border bg-panel shadow-2xl transition-all-fast`}
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-slate-100 dark:bg-slate-900 rounded-t-card">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
@@ -33,7 +39,7 @@ export function Modal({
             <X size={14} />
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className={`px-5 py-4 ${size === "xl" ? "max-h-[75vh] overflow-y-auto" : ""}`}>{children}</div>
       </div>
     </div>
   );
