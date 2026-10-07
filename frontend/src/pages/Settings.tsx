@@ -59,7 +59,7 @@ export function Settings() {
 
   return (
     <div className="space-y-6 pb-12">
-      <header className="sticky top-0 z-10 -mx-6 lg:-mx-8 -mt-6 lg:-mt-8 mb-6 px-6 lg:px-8 py-4 backdrop-blur-md bg-slate-50/80 dark:bg-slate-900/80 border-b border-border flex items-center justify-between transition-all-fast">
+      <header className="sticky top-0 z-10 -mx-6 lg:-mx-8 -mt-6 lg:-mt-8 mb-6 px-6 lg:px-8 py-4 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-border flex items-center justify-between transition-all-fast">
         <div>
           <h1 className="text-xl font-extrabold tracking-tight text-text">Settings</h1>
           <p className="text-xs text-muted font-medium mt-0.5">
