@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
+  Bar,
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -11,8 +12,12 @@ import {
 } from "recharts";
 import type { Measurement, Target } from "../types";
 import { formatClock } from "../services/format";
+import { buildSeries, buildTimeline } from "../services/chartData";
+import { HoverTooltip } from "./HoverTooltip";
 
 const LINE_COLORS = ["#34d8c6", "#7c9eff", "#c792ea", "#5fd3f3", "#ff9f68", "#f472b6"];
+// Packet loss reads as "red" regardless of which targets are plotted.
+const LOSS_COLOR = "#ef4444";
 
 export const RANGE_OPTIONS = [
   { label: "1m", minutes: 1 },
@@ -38,16 +43,11 @@ export function LatencyChart({
   onRangeChange,
   rangeOptions = RANGE_OPTIONS,
 }: Props) {
-  const seriesByTarget = useMemo(() => {
-    const map = new Map<number, { ts: number; latency_ms: number | null }[]>();
-    for (const t of targets) map.set(t.id, []);
-    for (const m of measurements) {
-      if (!map.has(m.target_id)) map.set(m.target_id, []);
-      map.get(m.target_id)!.push({ ts: new Date(m.timestamp).getTime(), latency_ms: m.latency_ms });
-    }
-    for (const arr of map.values()) arr.sort((a, b) => a.ts - b.ts);
-    return map;
-  }, [measurements, targets]);
+  const [showJitter, setShowJitter] = useState(true);
+  const [showLoss, setShowLoss] = useState(true);
+
+  const seriesByTarget = useMemo(() => buildSeries(measurements, targets), [measurements, targets]);
+  const timeline = useMemo(() => buildTimeline(seriesByTarget), [seriesByTarget]);
 
   const now = Date.now();
   const domainStart = now - rangeMinutes * 60_000;
@@ -56,18 +56,46 @@ export function LatencyChart({
     <div className="rounded-card border border-border bg-panel p-4 transition-all-fast">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold tracking-tight text-text">Latency · Biểu đồ độ trễ</h3>
-        <div className="flex items-center rounded-control border border-border p-0.5 gap-0.5 bg-panel-alt">
-          {rangeOptions.map((opt) => (
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
-              key={opt.label}
-              onClick={() => onRangeChange(opt.minutes)}
-              className={`px-2.5 py-1 text-xs rounded-[4px] font-mono transition-all-fast ${
-                rangeMinutes === opt.minutes ? "bg-accent-soft text-accent font-semibold shadow-sm" : "text-muted hover:text-text"
+              onClick={() => setShowJitter((v) => !v)}
+              aria-pressed={showJitter}
+              title="Jitter (dashed line, same scale as latency)"
+              className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-[4px] font-mono transition-all-fast ${
+                showJitter ? "text-text" : "text-muted opacity-60 hover:opacity-100"
               }`}
             >
-              {opt.label}
+              <svg width="16" height="6" aria-hidden="true">
+                <line x1="0" y1="3" x2="16" y2="3" stroke="var(--color-muted)" strokeWidth="1.5" strokeDasharray="3 3" />
+              </svg>
+              Jitter
             </button>
-          ))}
+            <button
+              onClick={() => setShowLoss((v) => !v)}
+              aria-pressed={showLoss}
+              title="Packet loss (red bars, 0-100%)"
+              className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-[4px] font-mono transition-all-fast ${
+                showLoss ? "text-text" : "text-muted opacity-60 hover:opacity-100"
+              }`}
+            >
+              <span className="inline-block h-3 w-1.5 rounded-[1px]" style={{ background: LOSS_COLOR, opacity: 0.55 }} />
+              Loss
+            </button>
+          </div>
+          <div className="flex items-center rounded-control border border-border p-0.5 gap-0.5 bg-panel-alt">
+            {rangeOptions.map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => onRangeChange(opt.minutes)}
+                className={`px-2.5 py-1 text-xs rounded-[4px] font-mono transition-all-fast ${
+                  rangeMinutes === opt.minutes ? "bg-accent-soft text-accent font-semibold shadow-sm" : "text-muted hover:text-text"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -77,7 +105,7 @@ export function LatencyChart({
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
-          <LineChart margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+          <ComposedChart data={timeline} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="ts"
@@ -90,6 +118,7 @@ export function LatencyChart({
               axisLine={{ stroke: "var(--color-border)" }}
             />
             <YAxis
+              yAxisId="latency"
               unit=" ms"
               stroke="var(--color-muted)"
               tick={{ fontSize: 11, fontFamily: "'Fira Code', monospace" }}
@@ -97,20 +126,48 @@ export function LatencyChart({
               axisLine={false}
               width={56}
             />
+            {/* Hidden: it only fixes the packet-loss scale to 0-100% so a 100% bar spans the full plot height. */}
+            <YAxis yAxisId="loss" orientation="right" domain={[0, 100]} hide />
             <Tooltip
-              contentStyle={{
-                background: "var(--color-panel-alt)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              labelFormatter={(v: number) => formatClock(new Date(v).toISOString())}
-              formatter={(value: unknown) => [value === null ? "no response" : `${value} ms`, ""]}
+              content={<HoverTooltip series={seriesByTarget} targets={targets} colors={LINE_COLORS} />}
+              cursor={{ stroke: "var(--color-muted)", strokeDasharray: "3 3" }}
             />
             <Legend wrapperStyle={{ fontSize: 12, color: "var(--color-muted)" }} />
+            {showLoss && (
+              <Bar
+                yAxisId="loss"
+                dataKey="packet_loss"
+                name="Packet loss"
+                legendType="none"
+                fill={LOSS_COLOR}
+                fillOpacity={0.3}
+                barSize={3}
+                isAnimationActive={false}
+              />
+            )}
+            {showJitter &&
+              targets.map((t, i) => (
+                <Line
+                  key={`jitter-${t.id}`}
+                  yAxisId="latency"
+                  data={seriesByTarget.get(t.id) ?? []}
+                  dataKey="jitter_ms"
+                  name={`${t.name} jitter`}
+                  legendType="none"
+                  stroke={LINE_COLORS[i % LINE_COLORS.length]}
+                  strokeOpacity={0.55}
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
+                  connectNulls={false}
+                />
+              ))}
             {targets.map((t, i) => (
               <Line
                 key={t.id}
+                yAxisId="latency"
                 data={seriesByTarget.get(t.id) ?? []}
                 dataKey="latency_ms"
                 name={t.name}
@@ -121,7 +178,7 @@ export function LatencyChart({
                 connectNulls={false}
               />
             ))}
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       )}
     </div>
