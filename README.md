@@ -180,9 +180,9 @@ successfully verified on real Windows environments.
 internet-monitor/
 ├── backend/            FastAPI app, monitoring engine, SQLite layer
 │   ├── app/
-│   │   ├── api/        REST endpoints (targets, measurements, statistics, outages, settings, status, monitoring, export, health, speedtest)
+│   │   ├── api/        REST endpoints (targets incl. on-demand traceroute, measurements, statistics, outages, settings, status, monitoring, export, health, speedtest)
 │   │   ├── database/   schema.sql + async repositories (aiosqlite)
-│   │   ├── monitoring/ pinger.py (ICMP/TCP probes) + scheduler.py (per-target async loops)
+│   │   ├── monitoring/ pinger.py (ICMP/TCP probes) + scheduler.py (per-target async loops) + traceroute.py
 │   │   ├── models/     Pydantic request/response/settings models
 │   │   ├── services/   statistics, quality classification, outage detection, status,
 │   │   │               connectivity, sleep tracking, notifications, settings, speedtest
@@ -320,6 +320,21 @@ current values. An example is below:
 }
 ```
 
+**SLA error budget.** Set `sla_target_pct` (e.g. `99.9`, the uptime in your
+ISP contract) and the Dashboard (rolling 30 days) and History (selected
+range) show how much of the allowed downtime is used: monitored time x
+(1 - SLA/100), amber from 80% used, red once it is exceeded. Monitored time
+excludes detected sleep gaps, the same denominator as the uptime percentage.
+
+**Webhook alerts.** Set `notifications.webhook_url` to also POST every alert
+to Slack, Discord or any endpoint that accepts JSON — useful on a headless
+server with no desktop to notify. The payload shape is chosen from the URL
+(Slack: `text`; Discord: `content`; anything else: `text`, `title`,
+`message`, `urgency`). Delivery is best-effort with a 10 s timeout and never
+blocks monitoring. Slack and Discord URLs contain a secret token: the app
+never logs the URL, but `GET /api/settings` returns it, so don't expose the
+API beyond localhost unauthenticated.
+
 **Targets** (which hosts are monitored) are managed separately via the
 Targets page, the `/api/targets` endpoints, or `internet-monitor targets`.
 Four defaults are seeded on first run: your detected gateway, your WAN IP
@@ -418,6 +433,12 @@ you may need `apt install iputils-ping`).
 (`libnotify-bin`) rather than bundling a notification library. If it's not
 installed, notifications are logged instead of shown; `sudo apt install
 libnotify-bin` and restart the service.
+
+**Traceroute says "traceroute is not installed"** — the Route button on the
+Targets page and dashboard runs the system `traceroute` (`tracert` on
+Windows). Minimal Linux images often lack it: `sudo apt install traceroute`.
+A hop shown as `* * *` is usually a router that ignores ICMP, not a fault; it
+only matters when the hops after it are lost too.
 
 **Dashboard shows "Frontend build not found"** — you're running the backend
 without having built the frontend first. Run `npm run build` in `frontend/`,
