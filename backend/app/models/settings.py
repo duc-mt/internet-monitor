@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from typing import Literal
+from urllib.parse import urlsplit
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ClassificationThresholds(BaseModel):
@@ -27,6 +28,23 @@ class NotificationPreferences(BaseModel):
     on_packet_loss_threshold: bool = True
     on_outage_duration: bool = True
     cooldown_seconds: int = Field(default=60, ge=0, le=3600)
+    # Optional HTTP webhook (Slack, Discord, or any endpoint that accepts a JSON
+    # POST) so alerts also reach headless servers with no desktop to notify.
+    # Treat the value as a secret: Slack and Discord webhook URLs embed their token.
+    webhook_url: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("webhook_url")
+    @classmethod
+    def _validate_webhook_url(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:  # the settings form sends "" when the field is cleared
+            return None
+        parts = urlsplit(v)
+        if parts.scheme not in ("http", "https") or not parts.hostname:
+            raise ValueError("webhook_url must be an http:// or https:// URL")
+        return v
 
 
 class AppSettings(BaseModel):

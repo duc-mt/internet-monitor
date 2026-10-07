@@ -22,6 +22,13 @@ State transitions (offline/online) always fire immediately - a user always
 wants to know the instant they lose or regain connectivity. Threshold
 alerts (latency/packet-loss) are debounced per (kind, target) key so a
 flapping metric doesn't spam five notifications a minute.
+
+Webhooks: when a webhook URL is configured, every alert is also POSTed there,
+independently of the desktop notifier - so a headless server (no
+notify-send, no desktop session) still gets alerts. Delivery runs as a
+background task with a short timeout so a slow or dead endpoint can never
+stall a monitoring loop, and the URL is never logged because Slack and
+Discord webhook URLs embed their credential.
 """
 
 from __future__ import annotations
@@ -33,10 +40,18 @@ import sys
 import time
 from asyncio import create_subprocess_exec
 from asyncio.subprocess import DEVNULL
+from urllib.parse import urlsplit
+
+import httpx
 
 logger = logging.getLogger("internet_monitor.notifications")
 
 _last_sent: dict[str, float] = {}
+
+_WEBHOOK_TIMEOUT_SECONDS = 10.0
+_DISCORD_MAX_CONTENT = 1900  # Discord rejects content over 2000 characters
+# Strong references to in-flight deliveries; the event loop only keeps weak ones.
+_webhook_tasks: set[asyncio.Task] = set()
 
 _IS_MACOS = sys.platform == "darwin"
 _IS_WINDOWS = sys.platform == "win32"
@@ -106,8 +121,59 @@ def _windows_toast_script(title: str, message: str) -> str:
     )
 
 
+def build_webhook_payload(url: str, title: str, message: str, urgency: str) -> dict:
+    """
+    JSON body for the destination, chosen from the URL because Slack and
+    Discord disagree on the key: Slack reads ``text`` (and bolds with ``*x*``),
+    Discord reads ``content`` (bold is ``**x**``) and rejects a body without it.
+    Anything else gets a generic body carrying both a ready-made ``text`` and
+    the separate fields.
+    """
+    host = (urlsplit(url).hostname or "").lower()
+    if host in ("discord.com", "discordapp.com") or host.endswith((".discord.com", ".discordapp.com")):
+        content = f"**{title}**\n{message}"
+        return {
+            "content": content[:_DISCORD_MAX_CONTENT],
+            # Target names are user-controlled; never let one @everyone the channel.
+            "allowed_mentions": {"parse": []},
+        }
+    if host == "hooks.slack.com":
+        return {"text": f"*{title}*\n{message}"}
+    return {"text": f"**{title}**\n{message}", "title": title, "message": message, "urgency": urgency}
+
+
+async def _send_webhook(url: str, title: str, message: str, urgency: str) -> None:
+    payload = build_webhook_payload(url, title, message, urgency)
+    try:
+        async with httpx.AsyncClient(timeout=_WEBHOOK_TIMEOUT_SECONDS, follow_redirects=False) as client:
+            response = await client.post(url, json=payload)
+        if response.status_code >= 400:
+            logger.warning("Webhook endpoint answered HTTP %s", response.status_code)
+    except Exception as exc:  # never let a bad endpoint raise out of a background task
+        # Only the exception type: httpx messages can include the request URL.
+        logger.warning("Webhook delivery failed (%s)", type(exc).__name__)
+
+
+def _dispatch_webhook(url: str, title: str, message: str, urgency: str) -> None:
+    task = asyncio.create_task(_send_webhook(url, title, message, urgency))
+    _webhook_tasks.add(task)
+    task.add_done_callback(_webhook_tasks.discard)
+
+
+async def flush_webhooks() -> None:
+    """Waits for in-flight webhook deliveries (used by tests and clean shutdown)."""
+    if _webhook_tasks:
+        await asyncio.gather(*list(_webhook_tasks), return_exceptions=True)
+
+
 async def send(
-    title: str, message: str, *, urgency: str = "normal", key: str | None = None, cooldown_seconds: int = 0
+    title: str,
+    message: str,
+    *,
+    urgency: str = "normal",
+    key: str | None = None,
+    cooldown_seconds: int = 0,
+    webhook_url: str | None = None,
 ) -> None:
     if key is not None and cooldown_seconds > 0:
         last = _last_sent.get(key)
@@ -115,6 +181,11 @@ async def send(
         if last is not None and (now - last) < cooldown_seconds:
             return
         _last_sent[key] = now
+
+    # Before the desktop check on purpose: a headless server has no desktop
+    # notifier, and the webhook is exactly how it gets alerted.
+    if webhook_url:
+        _dispatch_webhook(webhook_url, title, message, urgency)
 
     if not notifier_available():
         logger.info("[notification suppressed - %s not found] %s: %s", _BACKEND_BINARY, title, message)

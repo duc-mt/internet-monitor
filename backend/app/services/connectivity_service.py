@@ -45,6 +45,7 @@ async def evaluate(conn: aiosqlite.Connection, settings: AppSettings) -> bool:
                 "All monitored external targets stopped responding.",
                 urgency="critical",
                 key="global_offline",
+                webhook_url=settings.notifications.webhook_url,
             )
         elif online and settings.notifications.on_online:
             await notification_service.send(
@@ -52,6 +53,7 @@ async def evaluate(conn: aiosqlite.Connection, settings: AppSettings) -> bool:
                 "Connectivity to monitored targets has resumed.",
                 urgency="normal",
                 key="global_online",
+                webhook_url=settings.notifications.webhook_url,
             )
     _previous_online = online
     return online

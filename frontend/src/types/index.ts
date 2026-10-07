@@ -125,6 +125,7 @@ export interface NotificationPreferences {
   on_packet_loss_threshold: boolean;
   on_outage_duration: boolean;
   cooldown_seconds: number;
+  webhook_url: string | null;
 }
 
 export interface AppSettings {

@@ -185,7 +185,10 @@ export function Settings() {
         </div>
       </Section>
 
-      <Section title="Notifications · Thông báo Desktop" description="Desktop notifications via notify-send · Thông báo tức thời trên màn hình máy tính.">
+      <Section
+        title="Notifications · Thông báo"
+        description="Desktop notifications, plus an optional webhook for servers with no desktop · Thông báo trên màn hình máy tính, và webhook tùy chọn cho máy chủ không có giao diện."
+      >
         <div className="space-y-3">
           {(
             [
@@ -214,6 +217,22 @@ export function Settings() {
                 onChange={(e) => setForm({ ...form, notifications: { ...form.notifications, cooldown_seconds: Number(e.target.value) } })}
               />
             </Field>
+          </div>
+          <div className="max-w-xl">
+            <Field label="Webhook URL (Địa chỉ webhook - Slack, Discord hoặc endpoint tùy chọn)">
+              <input
+                type="url" className={`${inputClass} font-mono`} autoComplete="off" spellCheck={false}
+                placeholder="https://hooks.slack.com/services/…"
+                value={form.notifications.webhook_url ?? ""}
+                onChange={(e) =>
+                  setForm({ ...form, notifications: { ...form.notifications, webhook_url: e.target.value.trim() || null } })
+                }
+              />
+            </Field>
+            <p className="text-xs text-muted mt-1.5">
+              Every alert above is also POSTed here as JSON (Slack and Discord formats are detected from the URL). Treat the
+              URL as a password · Mỗi cảnh báo cũng được gửi tới đây dạng JSON; hãy giữ bí mật URL này.
+            </p>
           </div>
         </div>
       </Section>

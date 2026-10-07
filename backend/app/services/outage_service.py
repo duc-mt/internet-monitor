@@ -57,6 +57,7 @@ async def evaluate(conn: aiosqlite.Connection, settings: AppSettings) -> None:
                 "Outage resolved",
                 f"Connectivity restored after {minutes:.1f} minute(s).",
                 key=f"outage_end:{closed.id}",
+                webhook_url=settings.notifications.webhook_url,
             )
 
     # Duration-exceeded alert for an outage still in progress.
@@ -69,6 +70,7 @@ async def evaluate(conn: aiosqlite.Connection, settings: AppSettings) -> None:
                 f"No connectivity for over {int(elapsed)} seconds.",
                 urgency="critical",
                 key=f"outage_duration:{active.id}",
+                webhook_url=settings.notifications.webhook_url,
             )
             _duration_notified.add(active.id)
 

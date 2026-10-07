@@ -158,6 +158,7 @@ class MonitoringManager:
                 f"{result.avg_latency_ms:.0f} ms (threshold {settings.latency_warning_threshold_ms:.0f} ms)",
                 key=f"latency:{target.id}",
                 cooldown_seconds=cooldown,
+                webhook_url=settings.notifications.webhook_url,
             )
         if (
             result.loss_pct > settings.packet_loss_warning_threshold_pct
@@ -168,6 +169,7 @@ class MonitoringManager:
                 f"{result.loss_pct:.0f}% loss (threshold {settings.packet_loss_warning_threshold_pct:.0f}%)",
                 key=f"loss:{target.id}",
                 cooldown_seconds=cooldown,
+                webhook_url=settings.notifications.webhook_url,
             )
 
     async def _cleanup_loop(self, conn: aiosqlite.Connection) -> None:

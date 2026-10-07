@@ -124,6 +124,34 @@ def test_statistics_exposes_downtime_and_monitored_seconds(client):
     assert body["effective_monitored_seconds"] == 0.0
 
 
+def test_settings_webhook_url_defaults_to_none_and_round_trips(client):
+    assert client.get("/api/settings").json()["notifications"]["webhook_url"] is None
+
+    url = "https://hooks.slack.com/services/T000/B000/secret-token"
+    resp = client.put("/api/settings", json={"notifications": {"webhook_url": url}})
+    assert resp.status_code == 200
+    assert resp.json()["notifications"]["webhook_url"] == url
+    # sibling notification fields keep their values
+    assert resp.json()["notifications"]["on_offline"] is True
+    assert client.get("/api/settings").json()["notifications"]["webhook_url"] == url
+
+
+def test_settings_webhook_url_can_be_cleared_with_an_empty_string(client):
+    url = "https://alerts.example.net/hook"
+    client.put("/api/settings", json={"notifications": {"webhook_url": url}})
+    # The settings form sends "" (or null) when the field is emptied.
+    resp = client.put("/api/settings", json={"notifications": {"webhook_url": ""}})
+    assert resp.status_code == 200
+    assert resp.json()["notifications"]["webhook_url"] is None
+
+
+def test_settings_webhook_url_rejects_non_http_urls(client):
+    for bad in ("ftp://example.net/hook", "javascript:alert(1)", "not a url", "https://"):
+        resp = client.put("/api/settings", json={"notifications": {"webhook_url": bad}})
+        assert resp.status_code == 422, bad
+    assert client.get("/api/settings").json()["notifications"]["webhook_url"] is None
+
+
 def test_statistics_requires_bounds_for_custom_range(client):
     resp = client.get("/api/statistics", params={"range": "custom"})
     assert resp.status_code == 400
