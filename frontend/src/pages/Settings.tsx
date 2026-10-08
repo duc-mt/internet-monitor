@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSettings } from "../hooks/useSettings";
 import { useTheme } from "../hooks/useTheme";
+import { ApiError } from "../services/api";
 import { LoadingState, ErrorState } from "../components/States";
 import { allowedDowntimeSeconds } from "../services/sla";
 import { formatDuration } from "../services/format";
@@ -35,6 +36,7 @@ export function Settings() {
   const [form, setForm] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (settings && !form) setForm(settings);
@@ -47,11 +49,17 @@ export function Settings() {
   const save = async () => {
     setSaving(true);
     setSaved(false);
+    setSaveError(null);
     try {
       await updateSettings(form);
       setTheme(form.theme as Theme);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      // Most commonly a 422 from the server-side validation (e.g. an SLA
+      // target outside 0-100, or a webhook URL that isn't http/https) -
+      // without this, the button just stops spinning with no explanation.
+      setSaveError(err instanceof ApiError ? err.message : "Could not reach the server to save settings.");
     } finally {
       setSaving(false);
     }
@@ -74,6 +82,15 @@ export function Settings() {
           {saving ? "Saving…" : saved ? "Saved ✓" : "Save changes"}
         </button>
       </header>
+
+      {saveError && (
+        <div
+          role="alert"
+          className="-mt-3 rounded-control border border-border bg-offline-soft px-3 py-2.5 text-sm text-offline"
+        >
+          Couldn't save: {saveError}
+        </div>
+      )}
 
       <Section title="Monitoring · Cơ chế giám sát" description="How often and how aggressively targets are checked · Tần suất và số gói tin ping khi kiểm tra mục tiêu.">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
