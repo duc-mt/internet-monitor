@@ -39,7 +39,23 @@ dependency: everything runs and is stored on your own machine.
 
 The fastest way to try it without installing anything system-wide:
 
-### Linux / macOS
+### Cross-Platform Automatic Launcher (Recommended)
+
+You can run the seamless cross-platform `run.py` script. It automatically sets up the Python virtual environment, installs backend and CLI dependencies, builds the React frontend if missing or updated, and launches the server or CLI:
+
+```bash
+# Start backend server & serve dashboard (Linux / macOS)
+./run.py
+
+# On Windows (CMD / PowerShell):
+python run.py
+
+# Use as a CLI wrapper:
+./run.py status
+./run.py targets list
+```
+
+### Manual Setup (Linux / macOS)
 
 ```bash
 # Backend
@@ -53,7 +69,7 @@ npm install
 npm run dev   # opens http://127.0.0.1:5173, proxies /api to the backend above
 ```
 
-### Windows (CMD or PowerShell)
+### Manual Setup (Windows CMD or PowerShell)
 
 **Prerequisites**: Python 3.12 or 3.13 (Python 3.14+ may trigger Rust compilation errors) and Node.js LTS installed.
 
