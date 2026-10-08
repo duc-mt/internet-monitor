@@ -331,9 +331,11 @@ to Slack, Discord or any endpoint that accepts JSON — useful on a headless
 server with no desktop to notify. The payload shape is chosen from the URL
 (Slack: `text`; Discord: `content`; anything else: `text`, `title`,
 `message`, `urgency`). Delivery is best-effort with a 10 s timeout and never
-blocks monitoring. Slack and Discord URLs contain a secret token: the app
-never logs the URL, but `GET /api/settings` returns it, so don't expose the
-API beyond localhost unauthenticated.
+blocks monitoring. Slack and Discord URLs contain a secret token, so the API
+never returns or logs it in full — `GET`/`PUT /api/settings` show it masked
+as `scheme://host/\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022` (e.g. `https://hooks.slack.com/\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022`).
+Saving settings with that masked value still in the field leaves the real
+URL untouched; type a new URL (or clear the field) to actually change it.
 
 **Targets** (which hosts are monitored) are managed separately via the
 Targets page, the `/api/targets` endpoints, or `internet-monitor targets`.
