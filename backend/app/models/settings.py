@@ -47,6 +47,26 @@ class NotificationPreferences(BaseModel):
         return v
 
 
+# A fixed-width placeholder, not the URL's real length, so the mask itself
+# gives no hint about how long the embedded Slack/Discord token is.
+_WEBHOOK_MASK_SUFFIX = "\u2022" * 8  # "••••••••"
+
+
+def mask_webhook_url(url: str | None) -> str | None:
+    """
+    What a webhook URL looks like once it leaves the server: scheme and host
+    are kept (useful for recognizing "yes, this points at Slack"), the path
+    and query - where Slack/Discord embed the actual bearer token - are
+    replaced. Deterministic for a given URL, so the API layer can tell a
+    genuine new value apart from the client simply echoing back what GET
+    returned.
+    """
+    if not url:
+        return None
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.hostname}/{_WEBHOOK_MASK_SUFFIX}"
+
+
 class AppSettings(BaseModel):
     # Monitoring
     ping_timeout_seconds: float = Field(default=2.0, ge=0.2, le=30)

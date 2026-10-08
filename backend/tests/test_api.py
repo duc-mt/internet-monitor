@@ -124,16 +124,52 @@ def test_statistics_exposes_downtime_and_monitored_seconds(client):
     assert body["effective_monitored_seconds"] == 0.0
 
 
-def test_settings_webhook_url_defaults_to_none_and_round_trips(client):
+def test_settings_webhook_url_defaults_to_none_and_is_masked_once_set(client):
     assert client.get("/api/settings").json()["notifications"]["webhook_url"] is None
 
     url = "https://hooks.slack.com/services/T000/B000/secret-token"
     resp = client.put("/api/settings", json={"notifications": {"webhook_url": url}})
     assert resp.status_code == 200
-    assert resp.json()["notifications"]["webhook_url"] == url
+    masked = resp.json()["notifications"]["webhook_url"]
+    # Scheme and host are kept (so you can tell "yes, this is Slack"), the
+    # token-bearing path is not - the API never echoes the real URL back.
+    assert masked == "https://hooks.slack.com/\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+    assert "secret-token" not in masked
     # sibling notification fields keep their values
     assert resp.json()["notifications"]["on_offline"] is True
-    assert client.get("/api/settings").json()["notifications"]["webhook_url"] == url
+    assert client.get("/api/settings").json()["notifications"]["webhook_url"] == masked
+
+
+def test_settings_webhook_url_survives_an_unrelated_save_with_the_mask_echoed_back(client):
+    """
+    Mirrors what the Settings page actually does: it loads the (masked) GET
+    response into its form state and PUTs the whole form back on every save,
+    including fields the user didn't touch.
+    """
+    from app.services import settings_service
+
+    url = "https://hooks.slack.com/services/T000/B000/secret-token"
+    client.put("/api/settings", json={"notifications": {"webhook_url": url}})
+    masked = client.get("/api/settings").json()["notifications"]["webhook_url"]
+
+    resp = client.put("/api/settings", json={"notifications": {"webhook_url": masked, "cooldown_seconds": 120}})
+    assert resp.status_code == 200
+    assert resp.json()["notifications"]["cooldown_seconds"] == 120
+    assert resp.json()["notifications"]["webhook_url"] == masked
+
+    # The real secret underneath was preserved, not overwritten with the mask text.
+    assert settings_service._cached.notifications.webhook_url == url
+
+
+def test_settings_webhook_url_can_be_changed_to_a_different_real_url(client):
+    from app.services import settings_service
+
+    client.put("/api/settings", json={"notifications": {"webhook_url": "https://hooks.slack.com/a/b/old-token"}})
+    new_url = "https://discord.com/api/webhooks/123456/new-token"
+    resp = client.put("/api/settings", json={"notifications": {"webhook_url": new_url}})
+    assert resp.status_code == 200
+    assert resp.json()["notifications"]["webhook_url"] == "https://discord.com/\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+    assert settings_service._cached.notifications.webhook_url == new_url
 
 
 def test_settings_webhook_url_can_be_cleared_with_an_empty_string(client):

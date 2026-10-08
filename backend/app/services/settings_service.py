@@ -3,7 +3,7 @@ from __future__ import annotations
 import aiosqlite
 
 from app.database import settings_repo
-from app.models.settings import AppSettings, AppSettingsUpdate
+from app.models.settings import AppSettings, AppSettingsUpdate, mask_webhook_url
 
 _cached: AppSettings | None = None
 
@@ -35,6 +35,18 @@ async def update_settings(conn: aiosqlite.Connection, patch: AppSettingsUpdate) 
     current = await get_settings(conn)
     current_dict = current.model_dump()
     updates = patch.model_dump(exclude_unset=True)
+
+    # The API only ever hands out a masked webhook_url (see api/settings.py),
+    # and the Settings page saves the whole form back, mask and all. If the
+    # client echoed that mask back unchanged, it means "I didn't touch this
+    # field" - restore the real secret rather than overwriting it with the
+    # placeholder text (which would otherwise look like a syntactically valid
+    # URL and silently destroy the configured webhook).
+    incoming_notifications = updates.get("notifications")
+    if incoming_notifications and "webhook_url" in incoming_notifications:
+        current_webhook_url = current_dict["notifications"].get("webhook_url")
+        if incoming_notifications["webhook_url"] == mask_webhook_url(current_webhook_url):
+            incoming_notifications["webhook_url"] = current_webhook_url
 
     for field in _NESTED_FIELDS:
         if field in updates:
