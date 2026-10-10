@@ -3,7 +3,7 @@ from __future__ import annotations
 """
 ==============================================================================
 Module Name:   speedtest_service.py
-Description:   Implementation and logic for speedtest_service.
+Description:   Manual, on-demand download-speed estimate.  This is deliberately *not* part of the monitoring loop - it is only ever invoked by an explicit user action (the dashboard's "Run speed test" button, or `POST /api/speedtest`), never on a timer. A real bandwidth test saturates the connection for a few seconds, which is exactly the kind of thing that should never happen silently in the background of a tool that's supposed to be lightweight.  Implementation choice: `requests` (a *blocking* HTTP call) run inside a worker thread via `asyncio.to_thread`, rather than an async HTTP client. This is a deliberate, verifiable guarantee - offloading to an OS thread means the download genuinely cannot stall the event loop the 5-second ping scheduler runs on, no matter how the download itself behaves (slow server, network stall, etc.), which is easier to reason about here than trusting every layer of an async HTTP stack to never accidentally block.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0
@@ -12,24 +12,6 @@ License:       MIT
 Usage:         python3 speedtest_service.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
-"""
-"""
-Manual, on-demand download-speed estimate.
-
-This is deliberately *not* part of the monitoring loop - it is only ever
-invoked by an explicit user action (the dashboard's "Run speed test"
-button, or `POST /api/speedtest`), never on a timer. A real bandwidth test
-saturates the connection for a few seconds, which is exactly the kind of
-thing that should never happen silently in the background of a tool
-that's supposed to be lightweight.
-
-Implementation choice: `requests` (a *blocking* HTTP call) run inside a
-worker thread via `asyncio.to_thread`, rather than an async HTTP client.
-This is a deliberate, verifiable guarantee - offloading to an OS thread
-means the download genuinely cannot stall the event loop the 5-second ping
-scheduler runs on, no matter how the download itself behaves (slow
-server, network stall, etc.), which is easier to reason about here than
-trusting every layer of an async HTTP stack to never accidentally block.
 """
 
 

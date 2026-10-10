@@ -3,7 +3,7 @@ from __future__ import annotations
 """
 ==============================================================================
 Module Name:   main.py
-Description:   Implementation and logic for main.
+Description:   internet-monitor: command-line interface.  This is a thin client over the local REST API (default http://127.0.0.1:8765/api) - it never touches the database or performs pings itself, so `internet-monitor status` always reflects exactly what the dashboard would show.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0
@@ -12,14 +12,6 @@ License:       MIT
 Usage:         python3 main.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
-"""
-"""
-internet-monitor: command-line interface.
-
-This is a thin client over the local REST API (default
-http://127.0.0.1:8765/api) - it never touches the database or performs
-pings itself, so `internet-monitor status` always reflects exactly what the
-dashboard would show.
 """
 
 

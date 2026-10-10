@@ -3,7 +3,7 @@ from __future__ import annotations
 """
 ==============================================================================
 Module Name:   config.py
-Description:   Implementation and logic for config.
+Description:   Application-wide configuration.  Two layers of configuration exist deliberately:  1. Environment/deploy-time config (this module) - where the SQLite file    lives, which host/port uvicorn binds to, log level. These rarely change    and are fine as environment variables with sensible defaults.  2. User-tunable settings (app.services.settings_service.AppSettings) - things    like thresholds and notification preferences that live in the `settings`    table so they can be changed from the dashboard without restarting the    service or touching the filesystem.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0
@@ -12,20 +12,6 @@ License:       MIT
 Usage:         python3 config.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
-"""
-"""
-Application-wide configuration.
-
-Two layers of configuration exist deliberately:
-
-1. Environment/deploy-time config (this module) - where the SQLite file
-   lives, which host/port uvicorn binds to, log level. These rarely change
-   and are fine as environment variables with sensible defaults.
-
-2. User-tunable settings (app.services.settings_service.AppSettings) - things
-   like thresholds and notification preferences that live in the `settings`
-   table so they can be changed from the dashboard without restarting the
-   service or touching the filesystem.
 """
 
 

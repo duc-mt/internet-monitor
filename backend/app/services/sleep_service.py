@@ -3,7 +3,7 @@ from __future__ import annotations
 """
 ==============================================================================
 Module Name:   sleep_service.py
-Description:   Implementation and logic for sleep_service.
+Description:   Distinguishes "the laptop was asleep" from "the internet was actually down", using a single heuristic: the gap in wall-clock time between one monitoring tick and the next.  Why this works: when a laptop suspends, the OS freezes the process entirely - no code runs, including the asyncio event loop the ping scheduler lives on. Nothing gets recorded *during* a real suspend; there just isn't a gap in the data, because the process itself wasn't running to create one, no false "8 hours of failed pings" ever get written. What we see instead, the moment the process resumes, is simply that "now" has jumped forward far more than one interval's worth of time since the last tick. A real internet outage, by contrast, still ticks on schedule the whole time (the process keeps running, checks keep firing every interval, they just keep failing) - so it does not produce this kind of gap at all.  This is intentionally a single, simple, OS-agnostic signal - no macOS IOKit power notifications, no Linux D-Bus login1 signals, no Windows power events - it costs nothing extra to check and needs no platform-specific code, at the cost of not catching the rarer case where the OS keeps the process running but tears down networking during sleep (e.g. some laptops' "Power Nap"/lid-close behavior). See README for that trade-off.  This must only ever be called from *one place at a time* process-wide (the caller in scheduler.py does this via MonitoringManager._eval_lock), since multiple concurrent target loops calling it independently would each detect - and each try to record - the same gap.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0
@@ -12,34 +12,6 @@ License:       MIT
 Usage:         python3 sleep_service.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
-"""
-"""
-Distinguishes "the laptop was asleep" from "the internet was actually
-down", using a single heuristic: the gap in wall-clock time between one
-monitoring tick and the next.
-
-Why this works: when a laptop suspends, the OS freezes the process
-entirely - no code runs, including the asyncio event loop the ping
-scheduler lives on. Nothing gets recorded *during* a real suspend; there
-just isn't a gap in the data, because the process itself wasn't running to
-create one, no false "8 hours of failed pings" ever get written. What we
-see instead, the moment the process resumes, is simply that "now" has
-jumped forward far more than one interval's worth of time since the last
-tick. A real internet outage, by contrast, still ticks on schedule the
-whole time (the process keeps running, checks keep firing every interval,
-they just keep failing) - so it does not produce this kind of gap at all.
-
-This is intentionally a single, simple, OS-agnostic signal - no macOS
-IOKit power notifications, no Linux D-Bus login1 signals, no Windows power
-events - it costs nothing extra to check and needs no platform-specific
-code, at the cost of not catching the rarer case where the OS keeps the
-process running but tears down networking during sleep (e.g. some laptops'
-"Power Nap"/lid-close behavior). See README for that trade-off.
-
-This must only ever be called from *one place at a time* process-wide
-(the caller in scheduler.py does this via MonitoringManager._eval_lock),
-since multiple concurrent target loops calling it independently would each
-detect - and each try to record - the same gap.
 """
 
 
