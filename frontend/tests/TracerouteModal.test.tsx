@@ -4,11 +4,19 @@ import { TracerouteModal } from "../src/components/TracerouteModal";
 import { ApiError } from "../src/services/api";
 import type { TracerouteResult } from "../src/types";
 
-const runTraceroute = vi.fn();
+const { runTraceroute } = vi.hoisted(() => ({
+  runTraceroute: vi.fn(),
+}));
 
 vi.mock("../src/services/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/services/api")>();
-  return { ...actual, api: { ...actual.api, runTraceroute: (id: number) => runTraceroute(id) } };
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      runTraceroute: (id: number) => runTraceroute(id),
+    },
+  };
 });
 
 // Dummy data only: RFC 1918 / RFC 6598 ranges and a public DNS resolver.
@@ -69,7 +77,9 @@ describe("TracerouteModal", () => {
   });
 
   it("shows the API error without the JSON quotes", async () => {
-    runTraceroute.mockRejectedValue(new ApiError(503, '"traceroute is not installed on this system"'));
+    const err = new ApiError(503, '"traceroute is not installed on this system"');
+    err.stack = "";
+    runTraceroute.mockRejectedValueOnce(err);
     render(<TracerouteModal target={target} onClose={() => {}} />);
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("traceroute is not installed on this system");
