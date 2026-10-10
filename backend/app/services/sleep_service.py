@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   sleep_service.py
@@ -40,7 +41,6 @@ since multiple concurrent target loops calling it independently would each
 detect - and each try to record - the same gap.
 """
 
-from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone

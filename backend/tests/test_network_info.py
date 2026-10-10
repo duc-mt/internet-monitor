@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   test_network_info.py
@@ -11,7 +12,6 @@ Usage:         python3 test_network_info.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
-from __future__ import annotations
 
 import pytest
 from app.monitoring import network_info

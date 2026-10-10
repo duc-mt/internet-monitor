@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   status_service.py
@@ -11,7 +12,6 @@ Usage:         python3 status_service.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
-from __future__ import annotations
 
 from datetime import datetime, timezone
 

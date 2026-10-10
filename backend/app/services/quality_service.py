@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   quality_service.py
@@ -11,7 +12,6 @@ Usage:         python3 quality_service.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
-from __future__ import annotations
 
 from app.models.settings import ClassificationThresholds
 from app.models.status import Quality

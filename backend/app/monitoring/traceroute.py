@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   traceroute.py
@@ -34,7 +35,6 @@ Design notes:
   instead of throwing everything away.
 """
 
-from __future__ import annotations
 
 import asyncio
 import ipaddress

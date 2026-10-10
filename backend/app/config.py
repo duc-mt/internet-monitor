@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   config.py
@@ -26,7 +27,6 @@ Two layers of configuration exist deliberately:
    service or touching the filesystem.
 """
 
-from __future__ import annotations
 
 import os
 from pathlib import Path

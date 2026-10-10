@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   notification_service.py
@@ -44,7 +45,6 @@ stall a monitoring loop, and the URL is never logged because Slack and
 Discord webhook URLs embed their credential.
 """
 
-from __future__ import annotations
 
 import asyncio
 import logging

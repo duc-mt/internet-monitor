@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   main.py
@@ -20,7 +21,6 @@ pings itself, so `internet-monitor status` always reflects exactly what the
 dashboard would show.
 """
 
-from __future__ import annotations
 
 import json as jsonlib
 import subprocess

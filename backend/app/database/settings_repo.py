@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   settings_repo.py
@@ -11,7 +12,6 @@ Usage:         python3 settings_repo.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
-from __future__ import annotations
 
 import json
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   migrations.py
@@ -24,7 +25,6 @@ would silently no-op on an upgrade and the app would crash the first time it
 tried to read/write the new column.
 """
 
-from __future__ import annotations
 
 import aiosqlite
 

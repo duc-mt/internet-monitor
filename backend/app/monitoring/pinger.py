@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   pinger.py
@@ -32,7 +33,6 @@ Both return a PingBatchResult so the rest of the app never needs to know
 which strategy produced a given measurement.
 """
 
-from __future__ import annotations
 
 import asyncio
 import errno

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   conftest.py
@@ -25,7 +26,6 @@ imported so the FastAPI lifespan never spawns real monitoring loops
 against the live internet during API tests.
 """
 
-from __future__ import annotations
 
 import os
 

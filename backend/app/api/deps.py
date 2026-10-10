@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   deps.py
@@ -11,7 +12,6 @@ Usage:         python3 deps.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
-from __future__ import annotations
 
 from app.database.connection import get_db
 

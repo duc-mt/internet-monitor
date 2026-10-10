@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   settings.py
@@ -11,7 +12,6 @@ Usage:         python3 settings.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
-from __future__ import annotations
 
 import aiosqlite
 from fastapi import APIRouter, Depends

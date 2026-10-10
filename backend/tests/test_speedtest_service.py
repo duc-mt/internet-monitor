@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   test_speedtest_service.py
@@ -11,7 +12,6 @@ Usage:         python3 test_speedtest_service.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
-from __future__ import annotations
 
 import asyncio
 import time

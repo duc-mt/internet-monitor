@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   network_info.py
@@ -32,7 +33,6 @@ system:
   never take down a measurement, only leave `network_name` as None for it.
 """
 
-from __future__ import annotations
 
 import asyncio
 import logging

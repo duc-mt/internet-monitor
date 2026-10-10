@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   speedtest_service.py
@@ -30,7 +31,6 @@ server, network stall, etc.), which is easier to reason about here than
 trusting every layer of an async HTTP stack to never accidentally block.
 """
 
-from __future__ import annotations
 
 import asyncio
 import time

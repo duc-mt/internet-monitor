@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 ==============================================================================
 Module Name:   connectivity_service.py
@@ -20,7 +21,6 @@ every external target failed for long enough that this counts as a
 recorded outage" and owns the outages table.
 """
 
-from __future__ import annotations
 
 import logging
 
