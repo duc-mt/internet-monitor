@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 ==============================================================================
 Module Name:   test_notification_service.py
@@ -218,7 +219,11 @@ def test_generic_payload_carries_text_and_the_separate_fields():
 
 
 def test_lookalike_hosts_do_not_get_the_discord_or_slack_format():
-    for url in ("https://discord.com.evil.example/x", "https://notdiscord.com/x", "https://hooks.slack.com.evil.example/x"):
+    for url in (
+        "https://discord.com.evil.example/x",
+        "https://notdiscord.com/x",
+        "https://hooks.slack.com.evil.example/x",
+    ):
         assert "urgency" in ns.build_webhook_payload(url, "T", "M", "normal")
 
 

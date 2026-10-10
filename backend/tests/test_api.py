@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 ==============================================================================
 Module Name:   test_api.py
@@ -181,7 +182,10 @@ def test_settings_webhook_url_can_be_changed_to_a_different_real_url(client):
     new_url = "https://discord.com/api/webhooks/123456/new-token"
     resp = client.put("/api/settings", json={"notifications": {"webhook_url": new_url}})
     assert resp.status_code == 200
-    assert resp.json()["notifications"]["webhook_url"] == "https://discord.com/\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+    assert (
+        resp.json()["notifications"]["webhook_url"]
+        == "https://discord.com/\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+    )
     assert settings_service._cached.notifications.webhook_url == new_url
 
 

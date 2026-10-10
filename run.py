@@ -12,16 +12,21 @@ Usage:         python3 run.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
+
 import os
 import sys
 import subprocess
 import platform
 from pathlib import Path
 
+
 def check_python_version():
     if sys.version_info < (3, 10):
-        print(f"Error: Python 3.10 or higher is required. You are running Python {sys.version_info.major}.{sys.version_info.minor}.")
+        print(
+            f"Error: Python 3.10 or higher is required. You are running Python {sys.version_info.major}.{sys.version_info.minor}."
+        )
         sys.exit(1)
+
 
 def is_stale(stamp_file: Path, source_files: list[Path]) -> bool:
     if not stamp_file.exists():
@@ -32,10 +37,12 @@ def is_stale(stamp_file: Path, source_files: list[Path]) -> bool:
             return True
     return False
 
+
 def mark_fresh(stamp_file: Path):
     # Ensure directory exists before creating stamp
     stamp_file.parent.mkdir(parents=True, exist_ok=True)
     stamp_file.touch()
+
 
 def main():
     check_python_version()
@@ -45,7 +52,7 @@ def main():
     os.chdir(root_dir)
 
     is_windows = platform.system() == "Windows"
-    
+
     # Determine OS-specific virtual environment paths
     venv_dir = root_dir / ".venv"
     if is_windows:
@@ -68,10 +75,10 @@ def main():
 
     if is_stale(py_stamp, [backend_reqs, cli_reqs]) or not cli_exe.exists():
         print("Checking and installing Python dependencies...")
-        
+
         if not venv_dir.exists():
             subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
-            
+
         subprocess.run([str(python_exe), "-m", "pip", "install", "--upgrade", "pip", "-q"], check=True)
         subprocess.run([str(pip_exe), "install", "-r", str(backend_reqs), "uvicorn"], check=True)
         subprocess.run([str(pip_exe), "install", "-e", str(root_dir / "cli")], check=True)
@@ -85,6 +92,7 @@ def main():
     frontend_dist = frontend_dir / "dist"
 
     import shutil
+
     has_npm = shutil.which(npm_cmd) is not None
 
     if has_npm:
@@ -106,18 +114,19 @@ def main():
     if not args:
         print("Starting Internet Monitor backend server on http://127.0.0.1:8765...")
         os.chdir(root_dir / "backend")
-        
-        # On Windows, replace the current process isn't natively supported the same way, 
+
+        # On Windows, replace the current process isn't natively supported the same way,
         # so we use subprocess.run. On Unix, we could use os.execv but run() is simpler across OS.
         try:
             subprocess.run([str(python_exe), "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8765"])
         except KeyboardInterrupt:
-            pass # Suppress traceback when user presses Ctrl+C
+            pass  # Suppress traceback when user presses Ctrl+C
     else:
         try:
             subprocess.run([str(cli_exe)] + args)
         except KeyboardInterrupt:
             pass
+
 
 if __name__ == "__main__":
     main()

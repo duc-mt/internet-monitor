@@ -11,6 +11,7 @@ Usage:         python3 speedtest.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
+
 import asyncio
 
 from fastapi import APIRouter, HTTPException
