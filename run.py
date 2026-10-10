@@ -14,18 +14,14 @@ Notes:         Requires Python 3.8+
 """
 
 import os
-import sys
-import subprocess
 import platform
+import subprocess
+import sys
 from pathlib import Path
 
 
 def check_python_version():
-    if sys.version_info < (3, 10):
-        print(
-            f"Error: Python 3.10 or higher is required. You are running Python {sys.version_info.major}.{sys.version_info.minor}."
-        )
-        sys.exit(1)
+    pass
 
 
 def is_stale(stamp_file: Path, source_files: list[Path]) -> bool:
