@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   pinger.py
-Description:   Latency probing.  Two strategies, matching the brief:  - ICMP: shells out to the system `ping` binary. On virtually every Linux   distribution `ping` already carries the CAP_NET_RAW capability (or is   setuid root), so this gets real ICMP echo measurements without our own   Python process ever touching a raw socket or needing elevated   privileges itself. We never use shell=True - arguments are passed as a   list straight to exec, so there is no shell-injection surface even   though `host` is user-supplied.  - TCP: a plain TCP connect timed end-to-end, used automatically when   `ping` is missing or blocked (e.g. a locked-down container), or when a   target is explicitly configured for TCP.  Both return a PingBatchResult so the rest of the app never needs to know which strategy produced a given measurement.
+Description:   Source module pinger.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

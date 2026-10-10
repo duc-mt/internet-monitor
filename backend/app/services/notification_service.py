@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   notification_service.py
-Description:   Desktop notifications.  - Linux: `notify-send` (part of libnotify, present on virtually every Linux   desktop - GNOME, KDE, XFCE, etc.). - macOS: `osascript` (AppleScript), which ships with every Mac - no install   needed. This gets a real Notification Center banner without pulling in   any third-party dependency. - Windows: `powershell` (Windows PowerShell 5.1, bundled with every   Windows 10/11 install) driving the WinRT toast-notification API   directly - no extra module (e.g. BurntToast) needs installing. This is   the one platform branch in this file that is unverified on real   hardware (see the docstring on _windows_toast_script below for the   specific, known risk).  Either way we shell out with argv-list subprocess calls (no shell=True), keeping the monitoring service itself free of any GUI-toolkit dependency and safe to run headless - and safe from injection even though titles and messages can contain target names/error text we don't fully control.  State transitions (offline/online) always fire immediately - a user always wants to know the instant they lose or regain connectivity. Threshold alerts (latency/packet-loss) are debounced per (kind, target) key so a flapping metric doesn't spam five notifications a minute.  Webhooks: when a webhook URL is configured, every alert is also POSTed there, independently of the desktop notifier - so a headless server (no notify-send, no desktop session) still gets alerts. Delivery runs as a background task with a short timeout so a slow or dead endpoint can never stall a monitoring loop, and the URL is never logged because Slack and Discord webhook URLs embed their credential.
+Description:   Source module notification_service.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

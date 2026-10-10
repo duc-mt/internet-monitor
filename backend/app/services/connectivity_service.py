@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   connectivity_service.py
-Description:   Tracks whether "the Internet" is up as a single boolean, distinct from the more conservative outage-record logic in outage_service. This layer answers "is anything reachable right now" and fires the immediate went-offline/came-back-online notifications; outage_service answers "has every external target failed for long enough that this counts as a recorded outage" and owns the outages table.
+Description:   Source module connectivity_service.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

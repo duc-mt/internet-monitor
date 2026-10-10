@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   outages.py
-Description:   Implementation and logic for outages.
+Description:   Source module outages.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   test_outage_service.py
-Description:   Implementation and logic for test_outage_service.
+Description:   Source module test_outage_service.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

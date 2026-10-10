@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   outage_service.py
-Description:   Implementation and logic for outage_service.
+Description:   Source module outage_service.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   traceroute.py
-Description:   On-demand and automatic traceroute, shared by the outage diagnostics and the ``POST /api/targets/{id}/traceroute`` troubleshooting endpoint.  Design notes:  - Stdlib only (``asyncio``, ``ipaddress``, ``re``) so it stays trivially   testable and has no import-time cost. - The platform tool is picked once per call: ``tracert`` on Windows,   ``traceroute`` elsewhere. Both are run with DNS resolution disabled   (``-d`` / ``-n``) - reverse lookups on a path that is already dropping   packets are slow and would blow the time budget. - The parser is structural, not locale-based: a hop line is "a line that   starts with an integer", RTTs are ``<number> ms`` tokens, a lone ``*`` is   a lost probe, and an address is any token that ``ipaddress`` accepts. That   keeps it working on localized Windows output ("Request timed out." in   another language) and on the slightly different layouts of GNU and BSD   traceroute. - Output is collected incrementally, so when the overall time budget runs   out the hops that *were* resolved are still returned (``timed_out=True``)   instead of throwing everything away.
+Description:   Source module traceroute.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

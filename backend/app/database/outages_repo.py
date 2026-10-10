@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   outages_repo.py
-Description:   Implementation and logic for outages_repo.
+Description:   Source module outages_repo.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

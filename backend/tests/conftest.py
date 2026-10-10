@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   conftest.py
-Description:   Shared test fixtures.  Two ground rules for this whole suite (per the project brief):   1. No test may depend on real Internet connectivity.   2. No test may talk to a real network target - the pinger's subprocess      and socket calls are monkeypatched wherever a test exercises code      that would otherwise reach out.  INTERNET_MONITOR_AUTOSTART is forced to "0" before app.main is ever imported so the FastAPI lifespan never spawns real monitoring loops against the live internet during API tests.
+Description:   Source module conftest.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

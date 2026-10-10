@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   network_info.py
-Description:   Best-effort detection of the network you're currently on (Wi-Fi SSID, or a "Wired (<interface>)" label when not on Wi-Fi) - the context needed to tell "50ms because you're on cafe Wi-Fi" apart from "50ms even though you're on your home LAN".  This only matters for laptops that actually move between networks, so it's explicitly a *lightweight, best-effort* lookup, not a full network-profiling system:  - Results are cached (`_CACHE_TTL`) since the network you're on changes far   less often than every 5-second ping check - without caching, every single   measurement would spawn 2-3 extra subprocesses on top of the ping/TCP   check already happening, which is exactly the kind of unnecessary   overhead the brief asks to avoid. - Every lookup is a short-timeout subprocess call with all errors treated   as "unknown" rather than raised - a missing tool (e.g. no `nmcli` on a   minimal Linux install) or a weird `route`/`networksetup` output must   never take down a measurement, only leave `network_name` as None for it.
+Description:   Source module network_info.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

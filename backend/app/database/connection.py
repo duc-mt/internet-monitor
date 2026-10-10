@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   connection.py
-Description:   Thin wrapper around a single shared aiosqlite connection.  SQLite handles one writer at a time regardless of how many connections you open, and WAL mode lets readers proceed concurrently with a writer. For an app with this write volume (one row per check, a handful of checks per second at most) a single shared connection guarded by an asyncio.Lock for writes is simpler and just as fast as a connection pool, and avoids "database is locked" errors that a naive multi-connection setup would hit.
+Description:   Source module connection.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   migrations.py
-Description:   Lightweight, additive-only schema migrations for databases created by an earlier version of the app.  New tables belong directly in schema.sql (`CREATE TABLE IF NOT EXISTS` already handles those safely for both fresh and existing databases). This module exists only to add a *column* to a table that may already exist from before that column was introduced - `CREATE TABLE IF NOT EXISTS` does not retroactively widen an existing table, so a plain schema.sql change alone would silently no-op on an upgrade and the app would crash the first time it tried to read/write the new column.
+Description:   Source module migrations.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0

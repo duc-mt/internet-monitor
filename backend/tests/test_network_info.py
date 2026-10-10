@@ -1,8 +1,7 @@
-
 """
 ==============================================================================
 Module Name:   test_network_info.py
-Description:   Implementation and logic for test_network_info.
+Description:   Source module test_network_info.py.
 Author:        Mai Tan Duc <ducmai.network@gmail.com>
 Created:       2026-10-10
 Version:       1.0.0
