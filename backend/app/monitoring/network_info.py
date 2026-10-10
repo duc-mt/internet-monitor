@@ -1,4 +1,17 @@
 """
+==============================================================================
+Module Name:   network_info.py
+Description:   Implementation and logic for network_info.
+Author:        Mai Tan Duc <ducmai.network@gmail.com>
+Created:       2026-10-10
+Version:       1.0.0
+License:       MIT
+==============================================================================
+Usage:         python3 network_info.py [options]
+Notes:         Requires Python 3.8+
+==============================================================================
+"""
+"""
 Best-effort detection of the network you're currently on (Wi-Fi SSID, or a
 "Wired (<interface>)" label when not on Wi-Fi) - the context needed to tell
 "50ms because you're on cafe Wi-Fi" apart from "50ms even though you're on

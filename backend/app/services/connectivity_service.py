@@ -1,4 +1,17 @@
 """
+==============================================================================
+Module Name:   connectivity_service.py
+Description:   Implementation and logic for connectivity_service.
+Author:        Mai Tan Duc <ducmai.network@gmail.com>
+Created:       2026-10-10
+Version:       1.0.0
+License:       MIT
+==============================================================================
+Usage:         python3 connectivity_service.py [options]
+Notes:         Requires Python 3.8+
+==============================================================================
+"""
+"""
 Tracks whether "the Internet" is up as a single boolean, distinct from the
 more conservative outage-record logic in outage_service. This layer answers
 "is anything reachable right now" and fires the immediate

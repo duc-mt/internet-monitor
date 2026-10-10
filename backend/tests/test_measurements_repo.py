@@ -1,3 +1,16 @@
+"""
+==============================================================================
+Module Name:   test_measurements_repo.py
+Description:   Implementation and logic for test_measurements_repo.
+Author:        Mai Tan Duc <ducmai.network@gmail.com>
+Created:       2026-10-10
+Version:       1.0.0
+License:       MIT
+==============================================================================
+Usage:         python3 test_measurements_repo.py [options]
+Notes:         Requires Python 3.8+
+==============================================================================
+"""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

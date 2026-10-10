@@ -1,4 +1,17 @@
 """
+==============================================================================
+Module Name:   notification_service.py
+Description:   Implementation and logic for notification_service.
+Author:        Mai Tan Duc <ducmai.network@gmail.com>
+Created:       2026-10-10
+Version:       1.0.0
+License:       MIT
+==============================================================================
+Usage:         python3 notification_service.py [options]
+Notes:         Requires Python 3.8+
+==============================================================================
+"""
+"""
 Desktop notifications.
 
 - Linux: `notify-send` (part of libnotify, present on virtually every Linux

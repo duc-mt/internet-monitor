@@ -1,4 +1,17 @@
 """
+==============================================================================
+Module Name:   migrations.py
+Description:   Implementation and logic for migrations.
+Author:        Mai Tan Duc <ducmai.network@gmail.com>
+Created:       2026-10-10
+Version:       1.0.0
+License:       MIT
+==============================================================================
+Usage:         python3 migrations.py [options]
+Notes:         Requires Python 3.8+
+==============================================================================
+"""
+"""
 Lightweight, additive-only schema migrations for databases created by an
 earlier version of the app.
 

@@ -1,4 +1,17 @@
 """
+==============================================================================
+Module Name:   connection.py
+Description:   Implementation and logic for connection.
+Author:        Mai Tan Duc <ducmai.network@gmail.com>
+Created:       2026-10-10
+Version:       1.0.0
+License:       MIT
+==============================================================================
+Usage:         python3 connection.py [options]
+Notes:         Requires Python 3.8+
+==============================================================================
+"""
+"""
 Thin wrapper around a single shared aiosqlite connection.
 
 SQLite handles one writer at a time regardless of how many connections you

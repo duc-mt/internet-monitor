@@ -1,4 +1,17 @@
 """
+==============================================================================
+Module Name:   traceroute.py
+Description:   Implementation and logic for traceroute.
+Author:        Mai Tan Duc <ducmai.network@gmail.com>
+Created:       2026-10-10
+Version:       1.0.0
+License:       MIT
+==============================================================================
+Usage:         python3 traceroute.py [options]
+Notes:         Requires Python 3.8+
+==============================================================================
+"""
+"""
 On-demand and automatic traceroute, shared by the outage diagnostics and the
 ``POST /api/targets/{id}/traceroute`` troubleshooting endpoint.
 

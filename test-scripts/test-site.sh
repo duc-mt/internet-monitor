@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# Script Name:   test-site.sh
+# Description:   Implementation and logic for test-site.
+# Author:        Mai Tan Duc <ducmai.network@gmail.com>
+# Created:       2026-10-10
+# Version:       1.0.0
+# License:       MIT
+# ==============================================================================
+# Usage:         ./test-site.sh [options] [arguments]
+# Notes:         Automated bash utility script
+# ==============================================================================
 # test-site.sh — run Internet Monitor as a quick, portable connectivity test
 # for a single physical location, with an isolated dataset per site and an
 # auto-saved report when you're done.

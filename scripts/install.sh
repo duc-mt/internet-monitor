@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# Script Name:   install.sh
+# Description:   Implementation and logic for install.
+# Author:        Mai Tan Duc <ducmai.network@gmail.com>
+# Created:       2026-10-10
+# Version:       1.0.0
+# License:       MIT
+# ==============================================================================
+# Usage:         ./install.sh [options] [arguments]
+# Notes:         Automated bash utility script
+# ==============================================================================
 # Install Internet Monitor from a source checkout. Works on any
 # systemd-based Linux distribution.
 #

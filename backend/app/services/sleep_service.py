@@ -1,4 +1,17 @@
 """
+==============================================================================
+Module Name:   sleep_service.py
+Description:   Implementation and logic for sleep_service.
+Author:        Mai Tan Duc <ducmai.network@gmail.com>
+Created:       2026-10-10
+Version:       1.0.0
+License:       MIT
+==============================================================================
+Usage:         python3 sleep_service.py [options]
+Notes:         Requires Python 3.8+
+==============================================================================
+"""
+"""
 Distinguishes "the laptop was asleep" from "the internet was actually
 down", using a single heuristic: the gap in wall-clock time between one
 monitoring tick and the next.
