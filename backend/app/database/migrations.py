@@ -15,7 +15,6 @@ Notes:         Requires Python 3.8+
 
 from __future__ import annotations
 
-
 import aiosqlite
 
 # (table, column, SQL type) - each is added only if not already present.

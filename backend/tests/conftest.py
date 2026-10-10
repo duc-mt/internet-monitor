@@ -15,7 +15,6 @@ Notes:         Requires Python 3.8+
 
 from __future__ import annotations
 
-
 import os
 
 os.environ["INTERNET_MONITOR_AUTOSTART"] = "0"
