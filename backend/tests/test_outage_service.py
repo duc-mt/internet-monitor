@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 """
 ==============================================================================
@@ -13,6 +12,8 @@ Usage:         python3 test_outage_service.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
+
+from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 

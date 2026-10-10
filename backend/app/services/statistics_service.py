@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 """
 ==============================================================================
@@ -13,6 +12,8 @@ Usage:         python3 statistics_service.py [options]
 Notes:         Requires Python 3.8+
 ==============================================================================
 """
+
+from __future__ import annotations
 
 import statistics as pystats
 from datetime import datetime, timedelta, timezone
