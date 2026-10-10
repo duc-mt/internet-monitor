@@ -25,9 +25,8 @@ const SCOPE_LABEL: Record<HopScope, { label: string; className: string }> = {
 const PROBES = 3;
 
 function errorMessage(err: unknown): string {
-  if (err instanceof ApiError) {
-    // The API wraps string details in JSON quotes; strip them for display.
-    return err.message.replace(/^"|"$/g, "");
+  if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
+    return (err as { message: string }).message.replace(/^"|"$/g, "");
   }
   return "Traceroute failed · Không thể chạy traceroute.";
 }
