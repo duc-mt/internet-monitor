@@ -19,9 +19,7 @@ from typing import Any
 
 _CREATE_NO_WINDOW = 0x08000000
 
-NO_WINDOW: dict[str, Any] = (
-    {"creationflags": _CREATE_NO_WINDOW} if sys.platform == "win32" else {}
-)
+NO_WINDOW: dict[str, Any] = {"creationflags": _CREATE_NO_WINDOW} if sys.platform == "win32" else {}
 
 
 def oem_encoding() -> str:
