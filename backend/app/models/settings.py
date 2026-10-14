@@ -35,6 +35,22 @@ class ClassificationThresholds(BaseModel):
     fair_packet_loss_pct: float = 5
 
 
+class StabilityThresholds(BaseModel):
+    """
+    Boundaries for the STABILITY SCORE, which judges a burst by its IQR (the
+    core latency variation) and its packet loss rather than by the latency
+    itself. Loss thresholds are in percent of the probes of one burst: with the
+    default 15-probe burst a single lost probe is 6.67 %, so "good" tolerates
+    exactly one.
+    """
+
+    excellent_iqr_ms: float = Field(default=5, ge=0)  # excellent also requires loss == 0
+    good_iqr_ms: float = Field(default=15, ge=0)
+    good_loss_pct: float = Field(default=7, ge=0, le=100)
+    fair_iqr_ms: float = Field(default=30, ge=0)
+    fair_loss_pct: float = Field(default=15, ge=0, le=100)
+
+
 class NotificationPreferences(BaseModel):
     on_offline: bool = True
     on_online: bool = True
@@ -84,10 +100,15 @@ def mask_webhook_url(url: str | None) -> str | None:
 class AppSettings(BaseModel):
     # Monitoring
     ping_timeout_seconds: float = Field(default=2.0, ge=0.2, le=30)
-    pings_per_check: int = Field(
-        default=3, ge=1, le=10, description="Number of echo/connect attempts per check ('retries' in the UI)."
+    burst_packet_count: int = Field(
+        default=15, ge=10, le=20, description="ICMP/TCP probes sent back-to-back in one Burst Probing cycle."
     )
-    default_target_interval_seconds: int = Field(default=5, ge=1, le=3600)
+    burst_interval_ms: int = Field(
+        default=20, ge=15, le=20, description="Pause between two probes of a burst, in milliseconds."
+    )
+    default_target_interval_seconds: int = Field(
+        default=60, ge=1, le=3600, description="Seconds between two bursts against a target."
+    )
 
     # Alert thresholds (separate from the quality classifier - these drive
     # desktop notifications specifically).
@@ -124,9 +145,12 @@ class AppSettings(BaseModel):
 
     notifications: NotificationPreferences = Field(default_factory=NotificationPreferences)
     classification: ClassificationThresholds = Field(default_factory=ClassificationThresholds)
+    stability: StabilityThresholds = Field(default_factory=StabilityThresholds)
 
-    # Data lifecycle
-    data_retention_days: int = Field(default=30, ge=1, le=3650)
+    # Data lifecycle: one row per burst is kept for `raw_retention_days`, then
+    # folded into one row per target per hour, kept for `data_retention_days`.
+    raw_retention_days: int = Field(default=7, ge=1, le=90)
+    data_retention_days: int = Field(default=90, ge=1, le=3650)
 
     # Presentation / misc
     start_on_boot: bool = False
@@ -138,7 +162,8 @@ class AppSettingsUpdate(BaseModel):
     """All fields optional so PUT /api/settings can be a partial patch."""
 
     ping_timeout_seconds: float | None = Field(default=None, ge=0.2, le=30)
-    pings_per_check: int | None = Field(default=None, ge=1, le=10)
+    burst_packet_count: int | None = Field(default=None, ge=10, le=20)
+    burst_interval_ms: int | None = Field(default=None, ge=15, le=20)
     default_target_interval_seconds: int | None = Field(default=None, ge=1, le=3600)
     latency_warning_threshold_ms: float | None = None
     packet_loss_warning_threshold_pct: float | None = None
@@ -148,6 +173,8 @@ class AppSettingsUpdate(BaseModel):
     sla_target_pct: float | None = Field(default=None, gt=0, le=100)
     notifications: NotificationPreferences | None = None
     classification: ClassificationThresholds | None = None
+    stability: StabilityThresholds | None = None
+    raw_retention_days: int | None = Field(default=None, ge=1, le=90)
     data_retention_days: int | None = Field(default=None, ge=1, le=3650)
     start_on_boot: bool | None = None
     theme: Literal["light", "dark", "system"] | None = None

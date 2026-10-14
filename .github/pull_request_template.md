@@ -13,7 +13,7 @@ Fixes # (issue)
 
 ## How Has This Been Tested?
 
-Please describe the tests that you ran to verify your changes. 
+Please describe the tests that you ran to verify your changes.
 - [ ] Backend tests (`pytest`)
 - [ ] Frontend tests (`npm run test`)
 - [ ] End-to-end manual verification

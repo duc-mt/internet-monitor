@@ -34,13 +34,13 @@ async def get_settings(conn: aiosqlite.Connection) -> AppSettings:
     return _cached
 
 
-_NESTED_FIELDS = ("notifications", "classification")
+_NESTED_FIELDS = ("notifications", "classification", "stability")
 
 
 async def update_settings(conn: aiosqlite.Connection, patch: AppSettingsUpdate) -> AppSettings:
     """
     Partial update (PUT is treated as a patch, matching the dashboard's
-    "change one setting" UX). Nested objects (notifications, classification)
+    "change one setting" UX). Nested objects (notifications, classification, stability)
     are merged key-by-key rather than replaced wholesale, so patching
     `notifications.on_offline` doesn't silently reset
     `notifications.cooldown_seconds` back to its default.

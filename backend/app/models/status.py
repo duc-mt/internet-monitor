@@ -19,6 +19,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 Quality = Literal["excellent", "good", "fair", "poor", "offline", "unknown"]
+Stability = Literal["excellent", "good", "fair", "poor", "unknown"]
 
 
 class TargetStatus(BaseModel):
@@ -29,6 +30,12 @@ class TargetStatus(BaseModel):
     latency_ms: float | None
     packet_loss: float | None
     last_checked: str | None
+    # Burst Probing summary of the latest check (None before the first burst
+    # or for a check recorded by an older version).
+    median_ms: float | None = None
+    iqr_ms: float | None = None
+    p95_ms: float | None = None
+    jitter_rfc3550_ms: float | None = None
 
 
 class StatusResponse(BaseModel):
@@ -37,6 +44,13 @@ class StatusResponse(BaseModel):
     latency_ms: float | None
     packet_loss: float | None
     jitter_ms: float | None
+    # Headline Burst Probing figures: the mean over the non-gateway targets'
+    # latest bursts, like latency_ms / packet_loss above.
+    median_ms: float | None = None
+    iqr_ms: float | None = None
+    p95_ms: float | None = None
+    jitter_rfc3550_ms: float | None = None
+    stability: Stability = "unknown"
     network_name: str | None = None
     monitoring_uptime_seconds: float
     uptime_pct_24h: float | None = None
@@ -59,6 +73,7 @@ class StatisticsResponse(BaseModel):
     p95_latency_ms: float | None
     packet_loss_pct: float | None
     avg_jitter_ms: float | None
+    avg_iqr_ms: float | None = None
     uptime_pct: float | None
     outage_count: int
     longest_outage_seconds: float | None

@@ -68,7 +68,21 @@ def _format_wired_or_tunnel(iface: str) -> str:
     return f"Wired ({iface})"
 
 
+async def _reap(proc: asyncio.subprocess.Process) -> None:
+    """Kills a child that is still running and collects it, so a timed-out
+    (or cancelled) lookup never leaves an orphaned/zombie process behind."""
+    try:
+        proc.kill()
+    except ProcessLookupError:  # already exited between the check and the kill
+        pass
+    try:
+        await asyncio.wait_for(proc.wait(), timeout=2.0)
+    except (asyncio.TimeoutError, OSError):  # pragma: no cover - a killed child that will not die
+        logger.warning("Child process %s did not exit after kill()", proc.pid)
+
+
 async def _run(*args: str, timeout: float = _SUBPROCESS_TIMEOUT) -> str:
+    proc: asyncio.subprocess.Process | None = None
     try:
         proc = await asyncio.create_subprocess_exec(
             *args,
@@ -79,6 +93,12 @@ async def _run(*args: str, timeout: float = _SUBPROCESS_TIMEOUT) -> str:
         return stdout.decode(errors="replace")
     except (FileNotFoundError, asyncio.TimeoutError, OSError):
         return ""
+    finally:
+        # Runs on timeout *and* on task cancellation (e.g. shutdown while a
+        # lookup is in flight): wait_for() cancels communicate() but never
+        # touches the child itself.
+        if proc is not None and proc.returncode is None:
+            await _reap(proc)
 
 
 # --- macOS ------------------------------------------------------------

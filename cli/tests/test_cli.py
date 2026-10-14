@@ -182,6 +182,89 @@ def test_history(runner, mock_client):
         assert "Cloudflare" in result.output
 
 
+def test_history_shows_burst_metrics(runner, mock_client):
+    mock_client.get.side_effect = [
+        {
+            "avg_latency_ms": 12.0,
+            "min_latency_ms": 10.0,
+            "max_latency_ms": 20.0,
+            "median_latency_ms": 11.5,
+            "p95_latency_ms": 18.0,
+            "avg_iqr_ms": 2.5,
+            "packet_loss_pct": 0.5,
+            "avg_jitter_ms": 1.5,
+            "outage_count": 0,
+            "sample_count": 50,
+        },
+        [
+            {
+                "timestamp": "2026-10-14T00:00:00+00:00",
+                "target_name": "Cloudflare",
+                "target_id": 1,
+                "latency_ms": 11.2,
+                "median_ms": 11.2,
+                "iqr_ms": 1.75,
+                "p95_ms": 19.5,
+                "jitter_rfc3550": 0.8,
+                "packet_loss": 6.67,
+                "success": True,
+            },
+            {
+                "timestamp": "2026-10-13T00:00:00+00:00",
+                "target_name": "Cloudflare",
+                "target_id": 1,
+                "latency_ms": 30.0,
+                "jitter_ms": 4.0,
+                "packet_loss": 0.0,
+                "success": True,
+            },  # a pre-upgrade row: no burst columns
+        ],
+    ]
+    with patch("internet_monitor_cli.main.ApiClient", return_value=mock_client):
+        result = runner.invoke(cli, ["history"])
+    assert result.exit_code == 0, result.output
+    out = result.output
+    assert "median=11.5 ms" in out and "IQR=2.5 ms" in out
+    assert "p95=18.0 ms" in out and "jitter (RFC 3550)=1.5 ms" in out and "loss=0.5%" in out
+    for header in ("MEDIAN_MS", "IQR_MS", "P95_MS", "JITTER_MS", "LOSS%"):
+        assert header in out
+    assert "11.20" in out and "1.75" in out and "19.50" in out and "0.80" in out
+    assert "30.00" in out and "4.00" in out  # legacy row falls back to latency_ms / jitter_ms
+
+
+def test_status_shows_burst_summary_and_stability(runner, mock_client):
+    mock_client.get.return_value = {
+        "online": True,
+        "quality": "excellent",
+        "latency_ms": 12.0,
+        "packet_loss": 0.0,
+        "jitter_ms": 0.9,
+        "median_ms": 11.5,
+        "iqr_ms": 1.5,
+        "p95_ms": 17.0,
+        "jitter_rfc3550_ms": 0.9,
+        "stability": "excellent",
+        "targets_reachable": 3,
+        "targets_total": 3,
+        "monitoring_running": True,
+        "monitoring_uptime_seconds": 120.0,
+        "active_outage": False,
+    }
+    with patch("internet_monitor_cli.main.ApiClient", return_value=mock_client):
+        result = runner.invoke(cli, ["status"])
+    assert result.exit_code == 0, result.output
+    assert "median 11.5 ms" in result.output and "IQR 1.5 ms" in result.output and "p95 17.0 ms" in result.output
+    assert "Stability:   EXCELLENT" in result.output
+
+
+def test_targets_add_defaults_to_a_60_second_burst_cycle(runner, mock_client):
+    mock_client.post.return_value = {"id": 7, "name": "X", "host": "1.1.1.1", "interval_seconds": 60}
+    with patch("internet_monitor_cli.main.ApiClient", return_value=mock_client):
+        result = runner.invoke(cli, ["targets", "add", "X", "1.1.1.1"])
+    assert result.exit_code == 0, result.output
+    assert mock_client.post.call_args.kwargs["json"]["interval_seconds"] == 60
+
+
 def test_config(runner, mock_client):
     mock_client.get.return_value = {"notifications": {"on_offline": True, "cooldown_seconds": 60}}
     mock_client.put.return_value = {"notifications": {"on_offline": False, "cooldown_seconds": 60}}

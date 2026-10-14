@@ -29,6 +29,20 @@ logger = logging.getLogger("internet_monitor.database")
 
 _SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
+# Applied to every connection when it is opened. WAL + synchronous=NORMAL is the
+# standard durable-enough pairing for a monitoring workload (a power cut can
+# lose the last few commits, never corrupt the file), and temp_store=MEMORY keeps
+# sort/GROUP BY scratch space off the disk. journal_size_limit stops the -wal
+# file from staying at its high-water mark after a checkpoint (it counts toward
+# disk usage just like the main file).
+_PRAGMAS = (
+    "PRAGMA journal_mode = WAL",
+    "PRAGMA synchronous = NORMAL",
+    "PRAGMA temp_store = MEMORY",
+    "PRAGMA journal_size_limit = 8388608",
+    "PRAGMA foreign_keys = ON",
+)
+
 _connection: aiosqlite.Connection | None = None
 _write_lock = asyncio.Lock()
 
@@ -40,7 +54,8 @@ async def init_db(db_path: Path | None = None) -> aiosqlite.Connection:
     path = db_path or DATABASE_PATH
     conn = await aiosqlite.connect(str(path))
     conn.row_factory = aiosqlite.Row
-    await conn.execute("PRAGMA foreign_keys = ON")
+    for pragma in _PRAGMAS:
+        await conn.execute(pragma)
     schema_sql = _SCHEMA_PATH.read_text()
     await conn.executescript(schema_sql)
     await conn.commit()

@@ -5,7 +5,8 @@
 # Created:       2026-10-10
 # Version:       1.0.0
 # License:       MIT
-# ==============================================================================
+exclude: '^(\.agents|\.gemini)/'
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0

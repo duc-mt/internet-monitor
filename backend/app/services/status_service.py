@@ -14,7 +14,7 @@ Notes:         Requires Python 3.8+
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import aiosqlite
 
@@ -40,6 +40,7 @@ async def compute_status(
 
     headline_latencies: list[float] = []
     headline_losses: list[float] = []
+    headline_burst: dict[str, list[float]] = {"median_ms": [], "iqr_ms": [], "p95_ms": [], "jitter_rfc3550": []}
 
     for t in targets:
         m = latest_by_target.get(t.id)
@@ -59,12 +60,20 @@ async def compute_status(
                 latency_ms=m.latency_ms if m else None,
                 packet_loss=m.packet_loss if m else None,
                 last_checked=m.timestamp if m else None,
+                median_ms=m.median_ms if m else None,
+                iqr_ms=m.iqr_ms if m else None,
+                p95_ms=m.p95_ms if m else None,
+                jitter_rfc3550_ms=m.jitter_rfc3550 if m else None,
             )
         )
         if not t.is_gateway and m is not None:
             if m.latency_ms is not None:
                 headline_latencies.append(m.latency_ms)
             headline_losses.append(m.packet_loss)
+            for field, values in headline_burst.items():
+                value = getattr(m, field)
+                if value is not None:
+                    values.append(value)
 
     # Assume online until we have evidence otherwise (avoids a false
     # "Offline" flash during the first few seconds after startup).
@@ -86,17 +95,30 @@ async def compute_status(
         else quality_service.classify(avg_latency, avg_loss, settings.classification)
     )
 
+    def mean(values: list[float]) -> float | None:
+        return round(sum(values) / len(values), 2) if values else None
+
+    avg_median = mean(headline_burst["median_ms"])
+    avg_iqr = mean(headline_burst["iqr_ms"])
+    avg_p95 = mean(headline_burst["p95_ms"])
+    avg_rfc_jitter = mean(headline_burst["jitter_rfc3550"])
+    # Stability needs a burst's IQR; offline trumps it, as it does for quality.
+    stability = (
+        "unknown"
+        if (have_any_measurement and not online)
+        else quality_service.classify_stability(avg_iqr, avg_loss, settings.stability)
+    )
+
     uptime = 0.0
     if monitoring_running and monitoring_started_at is not None:
         uptime = (datetime.now(timezone.utc) - monitoring_started_at).total_seconds()
 
     active_outage = await outages_repo.get_active_outage(conn)
     network_name = await network_info.get_network_name()
-    # Reuses the exact same downtime/sleep-exclusion logic as the History
-    # page's range stats (statistics_service) rather than a second
-    # implementation of the same math - a fixed 24h window is what most
-    # dashboards mean by a headline "uptime" figure.
-    uptime_24h = await statistics_service.compute_statistics(conn, range_name="24h")
+    # Same downtime/sleep-exclusion maths as the History page's range stats,
+    # but through the lightweight path: this runs on every /api/status poll
+    # (every few seconds), so it must not load and sort a day of samples.
+    uptime_pct_24h = await statistics_service.compute_uptime_pct(conn, window=timedelta(hours=24))
 
     return StatusResponse(
         online=online,
@@ -104,9 +126,14 @@ async def compute_status(
         latency_ms=avg_latency,
         packet_loss=avg_loss,
         jitter_ms=avg_jitter,
+        median_ms=avg_median,
+        iqr_ms=avg_iqr,
+        p95_ms=avg_p95,
+        jitter_rfc3550_ms=avg_rfc_jitter,
+        stability=stability,
         network_name=network_name,
         monitoring_uptime_seconds=uptime,
-        uptime_pct_24h=uptime_24h.uptime_pct,
+        uptime_pct_24h=uptime_pct_24h,
         targets_reachable=reachable_count,
         targets_total=len(targets),
         targets=target_statuses,

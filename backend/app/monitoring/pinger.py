@@ -39,8 +39,7 @@ _TIME_RE = re.compile(r"time[=<]\s*([\d.]+)\s*ms")
 
 # Linux/macOS: "3 packets transmitted, 3 received, 0% packet loss"
 _SUMMARY_RE = re.compile(
-    r"(\d+)\s+packets transmitted,\s+(\d+)\s+(?:packets\s+)?received.*?"
-    r"(\d+(?:\.\d+)?)%\s+packet loss",
+    r"(\d+)\s+packets transmitted,\s+(\d+)\s+(?:packets\s+)?received.*?" r"(\d+(?:\.\d+)?)%\s+packet loss",
     re.DOTALL,
 )
 # Windows: "Packets: Sent = 3, Received = 3, Lost = 0 (0% loss),"

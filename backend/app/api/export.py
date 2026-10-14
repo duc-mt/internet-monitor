@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import csv
 import io
+import json
+from collections.abc import AsyncIterator
 
 import aiosqlite
 from fastapi import APIRouter, Depends
@@ -27,32 +29,48 @@ from app.services import statistics_service
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
+# Same cap as before streaming existed; the point of streaming is that memory no longer scales with it.
+EXPORT_MAX_ROWS = 100_000
+_BATCH_ROWS = 1000
 
-@router.get("/measurements.csv")
-async def export_measurements_csv(
-    target_id: int | None = None,
-    start: str | None = None,
-    end: str | None = None,
-    db: aiosqlite.Connection = Depends(get_db),
-):
-    rows = await measurements_repo.list_measurements(db, target_id=target_id, start=start, end=end, limit=100000)
+CSV_COLUMNS = [
+    "timestamp",
+    "target_id",
+    "target_name",
+    "latency_ms",
+    "packet_loss",
+    "jitter_ms",
+    "success",
+    "error",
+    "network_name",
+    # Burst Probing summary (appended, so existing column positions are unchanged)
+    "median_ms",
+    "p25_ms",
+    "p75_ms",
+    "p95_ms",
+    "min_ms",
+    "max_ms",
+    "iqr_ms",
+    "jitter_rfc3550",
+    "packet_count",
+]
+
+
+def _csv_line(values: list) -> str:
+    """One CSV record as text. A fresh buffer per line keeps this stateless: nothing accumulates between yields."""
     buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(
-        [
-            "timestamp",
-            "target_id",
-            "target_name",
-            "latency_ms",
-            "packet_loss",
-            "jitter_ms",
-            "success",
-            "error",
-            "network_name",
-        ]
-    )
-    for r in rows:
-        writer.writerow(
+    csv.writer(buffer).writerow(["" if v is None else v for v in values])
+    return buffer.getvalue()
+
+
+async def _stream_measurements_csv(
+    db: aiosqlite.Connection, target_id: int | None, start: str | None, end: str | None
+) -> AsyncIterator[str]:
+    yield _csv_line(CSV_COLUMNS)
+    async for r in measurements_repo.iter_measurements(
+        db, target_id=target_id, start=start, end=end, batch_size=_BATCH_ROWS, max_rows=EXPORT_MAX_ROWS
+    ):
+        yield _csv_line(
             [
                 r.timestamp,
                 r.target_id,
@@ -61,13 +79,32 @@ async def export_measurements_csv(
                 r.packet_loss,
                 r.jitter_ms,
                 r.success,
-                r.error or "",
-                r.network_name or "",
+                r.error,
+                r.network_name,
+                r.median_ms,
+                r.p25_ms,
+                r.p75_ms,
+                r.p95_ms,
+                r.min_ms,
+                r.max_ms,
+                r.iqr_ms,
+                r.jitter_rfc3550,
+                r.packet_count,
             ]
         )
-    buffer.seek(0)
+
+
+@router.get("/measurements.csv")
+async def export_measurements_csv(
+    target_id: int | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    # A real stream: rows are fetched a batch at a time and written to the socket
+    # as they come, instead of being collected into one in-memory buffer first.
     return StreamingResponse(
-        iter([buffer.getvalue()]),
+        _stream_measurements_csv(db, target_id, start, end),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=internet-monitor-measurements.csv"},
     )
@@ -93,13 +130,9 @@ async def export_report_json(
         "statistics": stats.model_dump(),
         "outages": [o.model_dump() for o in outages],
     }
-    buffer = io.StringIO()
-    import json
-
-    json.dump(report, buffer, indent=2)
-    buffer.seek(0)
+    # Small (one statistics block + the outage list), so it is built in one piece.
     return StreamingResponse(
-        iter([buffer.getvalue()]),
+        iter([json.dumps(report, indent=2)]),
         media_type="application/json",
         headers={"Content-Disposition": "attachment; filename=internet-monitor-report.json"},
     )

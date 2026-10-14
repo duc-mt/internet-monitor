@@ -42,8 +42,18 @@ const mockStatus: StatusResponse = {
 };
 
 const mockTargets: Target[] = [
-  { id: 1, name: "Gateway", host: "192.168.1.1", protocol: "icmp", port: null, is_gateway: true, enabled: true, interval_seconds: 5, created_at: "2026-01-01T00:00:00Z" },
+  { id: 1, name: "Gateway", host: "192.168.1.1", protocol: "icmp", port: null, is_gateway: true, enabled: true, interval_seconds: 60, created_at: "2026-01-01T00:00:00Z" },
+  { id: 2, name: "Cloudflare", host: "1.1.1.1", protocol: "icmp", port: null, is_gateway: false, enabled: true, interval_seconds: 60, created_at: "2026-01-01T00:00:00Z" },
 ];
+
+const burstStatus: StatusResponse = {
+  ...mockStatus,
+  median_ms: 23.4,
+  iqr_ms: 3.2,
+  p95_ms: 41.7,
+  jitter_rfc3550_ms: 1.05,
+  stability: "excellent",
+};
 
 const mockMonthStats = {
   uptime_pct: 99.98,
@@ -104,6 +114,36 @@ describe("Dashboard", () => {
     await waitFor(() => expect(screen.getByText("WITHIN SLA")).toBeInTheDocument());
     expect(api.getStatistics).toHaveBeenCalledWith({ range: "30d" });
     expect(screen.getByText("43m 12s")).toBeInTheDocument();
+  });
+
+  it("shows the burst figures: base latency, IQR, RFC 3550 jitter, p95 and the stability score", async () => {
+    vi.mocked(api.getStatus).mockResolvedValue(burstStatus);
+    renderDashboard();
+    await waitFor(() => expect(screen.getByText("Base latency")).toBeInTheDocument());
+    expect(screen.getByText("23.4")).toBeInTheDocument();
+    expect(screen.getByText("IQR (variation)")).toBeInTheDocument();
+    expect(screen.getByText("3.20")).toBeInTheDocument();
+    expect(screen.getByText("Jitter (RFC 3550)")).toBeInTheDocument();
+    expect(screen.getByText("1.05")).toBeInTheDocument();
+    expect(screen.getByText("Tail latency (p95)")).toBeInTheDocument();
+    expect(screen.getByText("41.7")).toBeInTheDocument();
+    expect(screen.getByText("Stability score")).toBeInTheDocument();
+    expect(screen.getByText("EXCELLENT")).toBeInTheDocument();
+  });
+
+  it("falls back to the older latency/jitter fields when the server sends no burst figures", async () => {
+    renderDashboard();
+    await waitFor(() => expect(screen.getByText("Base latency")).toBeInTheDocument());
+    expect(screen.getByText("24.5")).toBeInTheDocument(); // latency_ms
+    expect(screen.getByText("UNKNOWN")).toBeInTheDocument(); // no stability on an older server
+  });
+
+  it("draws the smoke graph for the first non-gateway target, over the last hour by default", async () => {
+    renderDashboard();
+    await waitFor(() => expect(screen.getByLabelText("Target")).toBeInTheDocument());
+    expect((screen.getByLabelText("Target") as HTMLSelectElement).value).toBe("2");
+    expect(screen.getByRole("button", { name: "1h" })).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(api.listMeasurements).toHaveBeenCalledWith(expect.objectContaining({ target_id: 2, limit: 20000 })));
   });
 
   it("flags an active outage in the subheading", async () => {

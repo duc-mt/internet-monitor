@@ -18,7 +18,7 @@ const DEFAULT_FORM: TargetInput = {
   port: null,
   is_gateway: false,
   enabled: true,
-  interval_seconds: 5,
+  interval_seconds: 60,
 };
 
 export function Targets() {

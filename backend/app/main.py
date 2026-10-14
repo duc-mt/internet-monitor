@@ -14,14 +14,14 @@ Notes:         Requires Python 3.8+
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.api import (
     export,
@@ -39,7 +39,9 @@ from app.config import DEV_CORS_ORIGINS, FRONTEND_DIST_DIR
 from app.database.connection import close_db, init_db
 from app.database.targets_repo import seed_default_targets
 from app.monitoring.scheduler import manager
+from app.services import notification_service
 from app.services.notification_service import notifier_available
+from app.spa import mount_frontend
 
 logging.basicConfig(
     level=os.environ.get("INTERNET_MONITOR_LOG_LEVEL", "INFO"),
@@ -50,6 +52,10 @@ logger = logging.getLogger("internet_monitor")
 # Set INTERNET_MONITOR_AUTOSTART=0 to boot the API without immediately
 # spawning monitoring loops - used by the test suite and by `--no-autostart`.
 AUTOSTART = os.environ.get("INTERNET_MONITOR_AUTOSTART", "1") != "0"
+
+# Upper bound on how long shutdown waits for in-flight webhook deliveries
+# (each one has its own 10s HTTP timeout) so a dead endpoint cannot hang exit.
+_WEBHOOK_FLUSH_TIMEOUT_SECONDS = 5.0
 
 
 @asynccontextmanager
@@ -62,6 +68,10 @@ async def lifespan(app: FastAPI):
         await manager.start(conn)
     yield
     await manager.stop()
+    # Webhook alerts are fired as background tasks; the last "offline" alert
+    # right before a shutdown would otherwise be silently dropped.
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(notification_service.flush_webhooks(), timeout=_WEBHOOK_FLUSH_TIMEOUT_SECONDS)
     await close_db()
 
 
@@ -90,16 +100,7 @@ for router in (
     app.include_router(router)
 
 if FRONTEND_DIST_DIR.is_dir():
-    assets_dir = FRONTEND_DIST_DIR / "assets"
-    if assets_dir.is_dir():
-        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
-
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_frontend(full_path: str):
-        candidate = FRONTEND_DIST_DIR / full_path
-        if full_path and candidate.is_file():
-            return FileResponse(candidate)
-        return FileResponse(FRONTEND_DIST_DIR / "index.html")
+    mount_frontend(app, FRONTEND_DIST_DIR)
 else:
 
     @app.get("/", include_in_schema=False)

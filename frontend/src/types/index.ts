@@ -1,5 +1,6 @@
 export type Protocol = "icmp" | "tcp";
 export type Quality = "excellent" | "good" | "fair" | "poor" | "offline" | "unknown";
+export type Stability = "excellent" | "good" | "fair" | "poor" | "unknown";
 export type Theme = "light" | "dark" | "system";
 export type RangeName = "1h" | "24h" | "7d" | "30d" | "custom";
 
@@ -28,6 +29,17 @@ export interface Measurement {
   success: boolean;
   error: string | null;
   network_name?: string | null;
+  // Burst Probing summary (ms). null on checks recorded before the upgrade, or when every probe was lost.
+  // Hourly rollup rows (error === "Downsampled") carry the hour's averages here.
+  median_ms?: number | null;
+  p25_ms?: number | null;
+  p75_ms?: number | null;
+  p95_ms?: number | null;
+  min_ms?: number | null;
+  max_ms?: number | null;
+  iqr_ms?: number | null;
+  jitter_rfc3550?: number | null;
+  packet_count?: number | null;
 }
 
 export interface Outage {
@@ -49,6 +61,10 @@ export interface TargetStatus {
   latency_ms: number | null;
   packet_loss: number | null;
   last_checked: string | null;
+  median_ms?: number | null;
+  iqr_ms?: number | null;
+  p95_ms?: number | null;
+  jitter_rfc3550_ms?: number | null;
 }
 
 export interface StatusResponse {
@@ -57,6 +73,12 @@ export interface StatusResponse {
   latency_ms: number | null;
   packet_loss: number | null;
   jitter_ms: number | null;
+  // Headline Burst Probing figures: mean over the non-gateway targets' latest bursts.
+  median_ms?: number | null;
+  iqr_ms?: number | null;
+  p95_ms?: number | null;
+  jitter_rfc3550_ms?: number | null;
+  stability?: Stability;
   network_name?: string | null;
   monitoring_uptime_seconds: number;
   uptime_pct_24h: number | null;
@@ -79,6 +101,7 @@ export interface StatisticsResponse {
   p95_latency_ms: number | null;
   packet_loss_pct: number | null;
   avg_jitter_ms: number | null;
+  avg_iqr_ms?: number | null;
   uptime_pct: number | null;
   outage_count: number;
   longest_outage_seconds: number | null;
@@ -118,6 +141,14 @@ export interface ClassificationThresholds {
   fair_packet_loss_pct: number;
 }
 
+export interface StabilityThresholds {
+  excellent_iqr_ms: number;
+  good_iqr_ms: number;
+  good_loss_pct: number;
+  fair_iqr_ms: number;
+  fair_loss_pct: number;
+}
+
 export interface NotificationPreferences {
   on_offline: boolean;
   on_online: boolean;
@@ -130,7 +161,8 @@ export interface NotificationPreferences {
 
 export interface AppSettings {
   ping_timeout_seconds: number;
-  pings_per_check: number;
+  burst_packet_count: number;
+  burst_interval_ms: number;
   default_target_interval_seconds: number;
   latency_warning_threshold_ms: number;
   packet_loss_warning_threshold_pct: number;
@@ -139,6 +171,8 @@ export interface AppSettings {
   sla_target_pct: number;
   notifications: NotificationPreferences;
   classification: ClassificationThresholds;
+  stability: StabilityThresholds;
+  raw_retention_days: number;
   data_retention_days: number;
   start_on_boot: boolean;
   theme: Theme;
@@ -153,8 +187,9 @@ export interface SpeedtestResult {
 }
 
 export type AppSettingsUpdate = Partial<
-  Omit<AppSettings, "notifications" | "classification"> & {
+  Omit<AppSettings, "notifications" | "classification" | "stability"> & {
     notifications: Partial<NotificationPreferences>;
     classification: Partial<ClassificationThresholds>;
+    stability: Partial<StabilityThresholds>;
   }
 >;

@@ -125,14 +125,14 @@ async def seed_default_targets(conn: aiosqlite.Connection) -> None:
 
         # Check if WAN target is missing and add it for backward compatibility
         if not wan_target and wan_ip:
-            await create_target(conn, TargetCreate(name="WAN", host=wan_ip, protocol="icmp", interval_seconds=5))
+            await create_target(conn, TargetCreate(name="WAN", host=wan_ip, protocol="icmp", interval_seconds=60))
         return
 
     defaults = [
-        TargetCreate(name="Gateway", host=gateway_ip, protocol="icmp", is_gateway=True, interval_seconds=5),
-        TargetCreate(name="WAN", host=wan_ip or "1.1.1.1", protocol="icmp", interval_seconds=5),
-        TargetCreate(name="Google DNS", host="8.8.8.8", protocol="icmp", interval_seconds=5),
-        TargetCreate(name="Cloudflare DNS", host="1.1.1.1", protocol="icmp", interval_seconds=5),
+        TargetCreate(name="Gateway", host=gateway_ip, protocol="icmp", is_gateway=True, interval_seconds=60),
+        TargetCreate(name="WAN", host=wan_ip or "1.1.1.1", protocol="icmp", interval_seconds=60),
+        TargetCreate(name="Google DNS", host="8.8.8.8", protocol="icmp", interval_seconds=60),
+        TargetCreate(name="Cloudflare DNS", host="1.1.1.1", protocol="icmp", interval_seconds=60),
     ]
     for target in defaults:
         await create_target(conn, target)

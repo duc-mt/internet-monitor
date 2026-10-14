@@ -36,8 +36,20 @@ SAFE_NAME="$(echo "$SITE_NAME" | tr ' /' '--')"
 DATA_DIR="$SCRIPT_DIR/../tmp/$SAFE_NAME"
 PORT="${INTERNET_MONITOR_PORT:-8765}"
 
-if [[ ! -x "$BACKEND_DIR/.venv/bin/python" ]]; then
-  echo "No venv found at $BACKEND_DIR/.venv — set that up first (see README)." >&2
+# The launchers (run.py / run.sh) create the venv at the project root; a manual
+# setup per the README may have put it in backend/. Accept either, root first.
+PYTHON_BIN=""
+for candidate in "$SCRIPT_DIR/../.venv/bin/python" "$BACKEND_DIR/.venv/bin/python"; do
+  if [[ -x "$candidate" ]]; then
+    PYTHON_BIN="$(cd -- "$(dirname -- "$candidate")" && pwd -P)/python"
+    break
+  fi
+done
+if [[ -z "$PYTHON_BIN" ]]; then
+  echo "No virtual environment found. Looked in:" >&2
+  echo "  $SCRIPT_DIR/../.venv" >&2
+  echo "  $BACKEND_DIR/.venv" >&2
+  echo "Set one up first (see README), e.g. ./run.sh from the project root." >&2
   exit 1
 fi
 
@@ -48,7 +60,7 @@ echo "==> Testing:  $SITE_NAME"
 echo "==> Data dir: $DATA_DIR"
 
 cd "$BACKEND_DIR"
-.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port "$PORT" &
+"$PYTHON_BIN" -m uvicorn app.main:app --host 127.0.0.1 --port "$PORT" &
 SERVER_PID=$!
 
 cleanup() {

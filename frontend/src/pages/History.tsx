@@ -6,6 +6,7 @@ import { useTargets } from "../hooks/useTargets";
 import { useSettings } from "../hooks/useSettings";
 import { ErrorBudgetCard } from "../components/ErrorBudgetCard";
 import { LatencyChart } from "../components/LatencyChart";
+import { SmokeGraph } from "../components/SmokeGraph";
 import { OutageList } from "../components/OutageList";
 import { LoadingState, ErrorState } from "../components/States";
 import { formatDuration, formatLatency, formatPct } from "../services/format";
@@ -51,9 +52,12 @@ export function History() {
 
   const measurementsFetcher = useCallback(() => {
     const start = new Date(Date.now() - chartMinutes * 60_000).toISOString();
-    return api.listMeasurements({ target_id: targetId, start, limit: 5000 });
+    // The API caps a page at 20,000 rows: 7 days of 1-minute checks for one target is ~10,000, and
+    // older history comes back as one row per hour.
+    return api.listMeasurements({ target_id: targetId, start, limit: 20000 });
   }, [chartMinutes, targetId]);
-  const { data: measurements } = usePolling(measurementsFetcher, 10000, [chartMinutes, targetId]);
+  // New checks land once a minute and long windows are big downloads, so refresh them less eagerly.
+  const { data: measurements } = usePolling(measurementsFetcher, chartMinutes > 360 ? 60000 : 15000, [chartMinutes, targetId]);
 
   const outagesFetcher = useCallback(() => api.listOutages({ limit: 100 }), []);
   const { data: outages } = usePolling(outagesFetcher, 20000);
@@ -142,6 +146,7 @@ export function History() {
           <Stat label="p95" value={formatLatency(stats.p95_latency_ms)} />
           <Stat label="Packet loss" value={formatPct(stats.packet_loss_pct)} />
           <Stat label="Avg jitter" value={formatLatency(stats.avg_jitter_ms)} />
+          <Stat label="Avg IQR" value={formatLatency(stats.avg_iqr_ms ?? null)} />
           <Stat label="Outages" value={String(stats.outage_count)} />
           <Stat label="Longest outage" value={formatDuration(stats.longest_outage_seconds)} />
           <Stat label="Monitoring duration" value={formatDuration(stats.monitoring_duration_seconds)} />
@@ -155,13 +160,26 @@ export function History() {
         periodLabel={RANGE_TABS.find((tab) => tab.value === range)?.label ?? "Selected range"}
       />
 
-      <LatencyChart
-        measurements={measurements ?? []}
-        targets={chartTargets}
-        rangeMinutes={chartMinutes}
-        onRangeChange={setChartMinutes}
-        rangeOptions={HISTORY_CHART_RANGES}
-      />
+      {/* One target: its smoke graph (median + IQR + tail). All targets: the multi-line comparison. */}
+      {targetId ? (
+        <SmokeGraph
+          measurements={measurements ?? []}
+          targets={targets}
+          targetId={targetId}
+          onTargetChange={setTargetId}
+          rangeMinutes={chartMinutes}
+          onRangeChange={setChartMinutes}
+          rangeOptions={HISTORY_CHART_RANGES}
+        />
+      ) : (
+        <LatencyChart
+          measurements={measurements ?? []}
+          targets={chartTargets}
+          rangeMinutes={chartMinutes}
+          onRangeChange={setChartMinutes}
+          rangeOptions={HISTORY_CHART_RANGES}
+        />
+      )}
 
       <div className="rounded-card border border-border bg-panel p-5 shadow-sm transition-all-fast">
         <h3 className="text-sm font-semibold tracking-tight text-text mb-3">Outage history · Lịch sử gián đoạn kết nối</h3>

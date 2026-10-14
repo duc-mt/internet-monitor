@@ -98,14 +98,40 @@ def test_settings_get_and_partial_update(client):
     get_resp = client.get("/api/settings")
     assert get_resp.status_code == 200
     original = get_resp.json()
-    assert original["data_retention_days"] == 30
+    assert original["data_retention_days"] == 90  # hourly-tier retention
+    assert original["raw_retention_days"] == 7
 
-    put_resp = client.put("/api/settings", json={"data_retention_days": 90})
+    put_resp = client.put("/api/settings", json={"data_retention_days": 120})
     assert put_resp.status_code == 200
     updated = put_resp.json()
-    assert updated["data_retention_days"] == 90
+    assert updated["data_retention_days"] == 120
     # untouched fields survive a partial update
     assert updated["theme"] == original["theme"]
+
+
+def test_settings_burst_defaults_and_bounds(client):
+    body = client.get("/api/settings").json()
+    assert (body["burst_packet_count"], body["burst_interval_ms"]) == (15, 20)
+    assert body["default_target_interval_seconds"] == 60
+    assert "pings_per_check" not in body
+
+    assert client.put("/api/settings", json={"burst_packet_count": 20, "burst_interval_ms": 15}).status_code == 200
+    # outside the 10-20 probes / 15-20 ms envelope
+    for bad in (
+        {"burst_packet_count": 9},
+        {"burst_packet_count": 21},
+        {"burst_interval_ms": 14},
+        {"burst_interval_ms": 21},
+    ):
+        assert client.put("/api/settings", json=bad).status_code == 422, bad
+
+
+def test_settings_stability_thresholds_round_trip(client):
+    assert client.get("/api/settings").json()["stability"]["excellent_iqr_ms"] == 5
+    resp = client.put("/api/settings", json={"stability": {"excellent_iqr_ms": 3}})
+    assert resp.status_code == 200
+    assert resp.json()["stability"]["excellent_iqr_ms"] == 3
+    assert resp.json()["stability"]["good_iqr_ms"] == 15  # siblings keep their defaults
 
 
 def test_settings_update_nested_notifications(client):

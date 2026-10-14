@@ -46,9 +46,17 @@ $SafeName   = ($SiteName -replace '[ /\\]', '-')
 $DataDir    = Join-Path (Join-Path $ProjectRoot "tmp") $SafeName
 $Port       = if ($env:INTERNET_MONITOR_PORT) { $env:INTERNET_MONITOR_PORT } else { "8765" }
 
-$PythonExe = Join-Path $BackendDir ".venv\Scripts\python.exe"
-if (-not (Test-Path $PythonExe)) {
-    Write-Error "No venv found at $BackendDir\.venv - set that up first (see README)."
+# The launchers (run.py / run.bat) create the venv at the project root; a manual
+# setup per the README may have put it in backend\. Accept either, root first.
+$PythonExe = $null
+foreach ($candidate in @(
+        (Join-Path $ProjectRoot ".venv\Scripts\python.exe"),
+        (Join-Path $BackendDir ".venv\Scripts\python.exe"))) {
+    if (Test-Path $candidate) { $PythonExe = (Resolve-Path $candidate).Path; break }
+}
+if (-not $PythonExe) {
+    Write-Error ("No virtual environment found. Looked in:`n  " + (Join-Path $ProjectRoot ".venv") +
+        "`n  " + (Join-Path $BackendDir ".venv") + "`nSet one up first (see README), e.g. run.bat from the project root.")
     exit 1
 }
 

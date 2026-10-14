@@ -26,10 +26,7 @@ Protocol = Literal["icmp", "tcp"]
 
 # A conservative RFC-1123-ish hostname pattern: labels of alphanumerics and
 # hyphens (not leading/trailing with a hyphen), joined by dots.
-_HOSTNAME_RE = re.compile(
-    r"^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)"
-    r"(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$"
-)
+_HOSTNAME_RE = re.compile(r"^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)" r"(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$")
 
 
 def validate_host(value: str) -> str:
@@ -53,7 +50,7 @@ class TargetBase(BaseModel):
     port: int | None = Field(default=None, ge=1, le=65535)
     is_gateway: bool = False
     enabled: bool = True
-    interval_seconds: int = Field(default=5, ge=MIN_INTERVAL_SECONDS, le=3600)
+    interval_seconds: int = Field(default=60, ge=MIN_INTERVAL_SECONDS, le=3600)
 
     @field_validator("host")
     @classmethod

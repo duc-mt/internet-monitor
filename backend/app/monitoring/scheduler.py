@@ -26,7 +26,8 @@ from app.models.measurement import MeasurementCreate
 from app.models.settings import AppSettings
 from app.models.target import TargetOut
 from app.monitoring import network_info
-from app.monitoring.pinger import PingBatchResult, run_check
+from app.monitoring.burst_prober import run_burst
+from app.monitoring.burst_stats import BurstMetric
 from app.services import (
     connectivity_service,
     notification_service,
@@ -114,11 +115,12 @@ class MonitoringManager:
         while True:
             try:
                 settings = await get_settings(conn)
-                result = await run_check(
+                metric = await run_burst(
                     host=current.host,
                     protocol=current.protocol,
                     port=current.port,
-                    count=settings.pings_per_check,
+                    count=settings.burst_packet_count,
+                    interval_ms=settings.burst_interval_ms,
                     timeout=settings.ping_timeout_seconds,
                 )
                 # Cached (see network_info._CACHE_TTL) - this does not spawn
@@ -129,15 +131,26 @@ class MonitoringManager:
                     MeasurementCreate(
                         target_id=current.id,
                         timestamp=datetime.now(timezone.utc).isoformat(),
-                        latency_ms=result.avg_latency_ms,
-                        packet_loss=result.loss_pct,
-                        jitter_ms=result.jitter_ms,
-                        success=result.success,
-                        error=result.error,
+                        # The long-standing columns mirror the burst's median RTT and
+                        # RFC 3550 jitter, so every older reader keeps seeing sensible numbers.
+                        latency_ms=metric.median_rtt,
+                        packet_loss=metric.loss_percent,
+                        jitter_ms=metric.jitter_rfc3550,
+                        success=metric.success,
+                        error=metric.error,
                         network_name=network_name,
+                        median_ms=metric.median_rtt,
+                        p25_ms=metric.p25_rtt,
+                        p75_ms=metric.p75_rtt,
+                        p95_ms=metric.p95_rtt,
+                        min_ms=metric.min_rtt,
+                        max_ms=metric.max_rtt,
+                        iqr_ms=metric.iqr_rtt,
+                        jitter_rfc3550=metric.jitter_rfc3550,
+                        packet_count=metric.packet_count,
                     ),
                 )
-                await self._check_thresholds(current, result, settings)
+                await self._check_thresholds(current, metric, settings)
                 async with self._eval_lock:
                     # Sleep-gap check first: it only ever *records* a
                     # closed system_sleep row from state it already had, it
@@ -160,46 +173,65 @@ class MonitoringManager:
             current = fresh
             await asyncio.sleep(max(MIN_INTERVAL_SECONDS, current.interval_seconds))
 
-    async def _check_thresholds(self, target: TargetOut, result: PingBatchResult, settings: AppSettings) -> None:
+    async def _check_thresholds(self, target: TargetOut, metric: BurstMetric, settings: AppSettings) -> None:
         cooldown = settings.notifications.cooldown_seconds
         if (
-            result.avg_latency_ms is not None
-            and result.avg_latency_ms > settings.latency_warning_threshold_ms
+            metric.median_rtt is not None
+            and metric.median_rtt > settings.latency_warning_threshold_ms
             and settings.notifications.on_latency_threshold
         ):
             await notification_service.send(
                 f"High latency: {target.name}",
-                f"{result.avg_latency_ms:.0f} ms (threshold {settings.latency_warning_threshold_ms:.0f} ms)",
+                f"{metric.median_rtt:.0f} ms (threshold {settings.latency_warning_threshold_ms:.0f} ms)",
                 key=f"latency:{target.id}",
                 cooldown_seconds=cooldown,
                 webhook_url=settings.notifications.webhook_url,
             )
         if (
-            result.loss_pct > settings.packet_loss_warning_threshold_pct
+            metric.loss_percent > settings.packet_loss_warning_threshold_pct
             and settings.notifications.on_packet_loss_threshold
         ):
             await notification_service.send(
                 f"Packet loss: {target.name}",
-                f"{result.loss_pct:.0f}% loss (threshold {settings.packet_loss_warning_threshold_pct:.0f}%)",
+                f"{metric.loss_percent:.0f}% loss (threshold {settings.packet_loss_warning_threshold_pct:.0f}%)",
                 key=f"loss:{target.id}",
                 cooldown_seconds=cooldown,
                 webhook_url=settings.notifications.webhook_url,
             )
 
     async def _cleanup_loop(self, conn: aiosqlite.Connection) -> None:
+        """Hourly: fold raw bursts older than raw_retention_days into hourly rows,
+        drop hourly rows older than data_retention_days, then trim the WAL."""
         try:
             await asyncio.sleep(_INITIAL_CLEANUP_DELAY)
             while True:
-                settings = await get_settings(conn)
-                downsampled = await measurements_repo.downsample_older_than(conn, 7)
-                if downsampled:
-                    logger.info("Downsampled %d hourly buckets for old measurements", downsampled)
-                deleted = await measurements_repo.delete_older_than(conn, settings.data_retention_days)
-                if deleted:
-                    logger.info("Retention cleanup removed %d measurement row(s)", deleted)
+                try:
+                    await self.run_maintenance(conn)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:  # pragma: no cover - defensive: a failed pass is retried next hour
+                    logger.exception("Retention/rollup pass failed")
                 await asyncio.sleep(_CLEANUP_INTERVAL)
         except asyncio.CancelledError:
             raise
+
+    @staticmethod
+    async def run_maintenance(conn: aiosqlite.Connection) -> None:
+        settings = await get_settings(conn)
+        rolled = await measurements_repo.rollup_older_than(conn, raw_retention_days=settings.raw_retention_days)
+        if rolled.raw_rows_deleted:
+            logger.info(
+                "Rollup: %d raw check(s) older than %d day(s) folded into %d hourly bucket(s)",
+                rolled.raw_rows_deleted,
+                settings.raw_retention_days,
+                rolled.buckets_written,
+            )
+        expired = await measurements_repo.delete_hourly_older_than(conn, settings.data_retention_days)
+        if expired:
+            logger.info("Retention cleanup removed %d hourly bucket(s)", expired)
+        if await measurements_repo.vacuum_if_fragmented(conn):
+            logger.info("Database compacted after retention cleanup")
+        await measurements_repo.checkpoint_wal(conn)
 
 
 manager = MonitoringManager()

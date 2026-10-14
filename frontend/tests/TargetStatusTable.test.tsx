@@ -22,6 +22,22 @@ describe("TargetStatusTable", () => {
     expect(screen.getByText("1.20 ms")).toBeInTheDocument();
   });
 
+  it("shows the burst median and IQR, falling back to latency for rows without them", () => {
+    render(
+      <TargetStatusTable
+        targets={[
+          { ...sample[0], median_ms: 3.45, iqr_ms: 0.6 },
+          { target_id: 3, name: "Legacy", host: "9.9.9.9", reachable: true, latency_ms: 40, packet_loss: 0, last_checked: new Date().toISOString() },
+        ]}
+      />
+    );
+    expect(screen.getByRole("columnheader", { name: "Median" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "IQR" })).toBeInTheDocument();
+    expect(screen.getByText("3.45 ms")).toBeInTheDocument();
+    expect(screen.getByText("0.60 ms")).toBeInTheDocument();
+    expect(screen.getByText("40.0 ms")).toBeInTheDocument();
+  });
+
   it("offers a traceroute action per row only when a handler is provided", () => {
     const { rerender } = render(<TargetStatusTable targets={sample} />);
     expect(screen.queryByRole("button", { name: /traceroute to/i })).not.toBeInTheDocument();

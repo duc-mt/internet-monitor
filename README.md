@@ -123,6 +123,23 @@ Debian/Ubuntu: `sudo apt install iproute2 wireless-tools`. Without them,
 `network_name` is simply `null` - it degrades gracefully rather than
 failing anything else.
 
+**How ICMP is sent (Burst Probing).** The monitor no longer shells out to
+`ping` for every check: it opens the ICMP socket itself so it can send a
+paced burst and time each probe with `perf_counter_ns()` (see
+[Burst Probing](#burst-probing-latency-variation-and-stability)).
+
+| OS | Mechanism | Needs |
+|---|---|---|
+| Linux | unprivileged ICMP datagram socket (`SOCK_DGRAM`), else a raw socket | the service user's group inside `net.ipv4.ping_group_range` (the default on current Ubuntu/Debian/Fedora), **or** `CAP_NET_RAW` (the shipped systemd unit grants it) |
+| macOS | unprivileged ICMP datagram socket | nothing |
+| Windows | `IcmpSendEcho2` from `iphlpapi.dll` through `ctypes` | nothing (no admin rights) |
+| any | TCP handshakes via `asyncio.open_connection` | nothing |
+
+If native ICMP is impossible (a locked-down container, an IPv6-only target)
+it degrades to the old `ping` command and then to TCP - one warning is
+logged, monitoring never stops. Set `INTERNET_MONITOR_ICMP_ENGINE=ping` to
+force the old `ping`-command engine.
+
 **macOS** works for development/ad-hoc use (backend + frontend + CLI in dev
 mode — see [Quick start](#quick-start)), with two small platform patches
 applied so the core monitoring logic behaves correctly:
@@ -191,6 +208,15 @@ Everything above is covered by mocked unit tests (exact command
 arguments, realistic sample output parsing, escaping) and has been
 successfully verified on real Windows environments.
 
+> **Not yet verified on real Windows / macOS:** the *native* Burst Probing
+> ICMP path (`IcmpSendEcho2` through `ctypes` on Windows; the datagram ICMP
+> socket's reply framing on macOS). It was developed and tested on Linux
+> against real sockets, plus - for Windows - a stand-in `iphlpapi` that
+> exercises the struct layout and control flow, which cannot prove real
+> Windows behaviour. Any unexpected failure in it falls back to the `ping`
+> engine automatically; if you see wrong numbers on those platforms, set
+> `INTERNET_MONITOR_ICMP_ENGINE=ping` and please report it.
+
 ---
 
 ## Architecture
@@ -201,11 +227,13 @@ internet-monitor/
 │   ├── app/
 │   │   ├── api/        REST endpoints (targets incl. on-demand traceroute, measurements, statistics, outages, settings, status, monitoring, export, health, speedtest)
 │   │   ├── database/   schema.sql + async repositories (aiosqlite)
-│   │   ├── monitoring/ pinger.py (ICMP/TCP probes) + scheduler.py (per-target async loops) + traceroute.py
+│   │   ├── monitoring/ burst_prober.py (Burst Probing engine) + burst_stats.py (percentiles, RFC 3550 jitter)
+│   │   │               + pinger.py (`ping`-command/TCP fallback) + scheduler.py (per-target async loops) + traceroute.py
 │   │   ├── models/     Pydantic request/response/settings models
 │   │   ├── services/   statistics, quality classification, outage detection, status,
 │   │   │               connectivity, sleep tracking, notifications, settings, speedtest
-│   │   └── main.py     app wiring, lifespan startup/shutdown, static frontend mount
+│   │   ├── spa.py      safe static-file serving for the built frontend
+│   │   └── main.py     app wiring, lifespan startup/shutdown
 │   └── tests/          pytest, all network calls mocked
 ├── frontend/           React + TypeScript + Tailwind dashboard (Vite)
 ├── cli/                `internet-monitor` command-line client (Click + httpx)
@@ -215,21 +243,27 @@ internet-monitor/
 ```
 
 **Data flow**: `scheduler.py` runs one async task per enabled target. Each
-tick calls `pinger.run_check()` (real ICMP via the system `ping` binary,
-falling back to a raw TCP connect if ICMP isn't available), writes a
-`measurements` row, checks per-target alert thresholds, then — serialized
+tick calls `burst_prober.run_burst()` (a paced burst of 10-20 native ICMP or
+TCP probes, falling back to the `ping` command and then TCP), reduces it in
+memory to a `BurstMetric`, writes one `measurements` row, checks per-target
+alert thresholds, then — serialized
 behind a lock so concurrent target loops can't race — updates the global
 online/offline state and re-evaluates whether an outage should be opened or
 closed. The dashboard and CLI both just read this same SQLite-backed state
 through the REST API; nothing is computed twice.
 
-**Why the API binds to `127.0.0.1` and never needs root**: the monitoring
-process never opens a raw socket itself. It shells out to the system `ping`
-binary (which is what actually needs `CAP_NET_RAW`) using `argv`-list
-`subprocess`/`asyncio.create_subprocess_exec` calls — never `shell=True` —
-so there's no shell-injection surface even though hostnames are
-user-supplied, and no reason for the FastAPI process itself to run as root
-or be network-reachable from anywhere but localhost.
+**Why the API binds to `127.0.0.1` and never needs root**: on Linux the
+monitor first tries an *unprivileged* ICMP datagram socket, which needs no
+capability at all; only if the kernel forbids that does it open a raw ICMP
+socket, which needs `CAP_NET_RAW` - the shipped systemd unit grants exactly
+that one capability (and nothing else) so the service itself never runs as
+root. The remaining subprocess calls (`ping` fallback, `traceroute`, network
+detection) use `argv`-list `asyncio.create_subprocess_exec` — never
+`shell=True` — so there's no shell-injection surface even though hostnames
+are user-supplied, and there's no reason for the FastAPI process to be
+network-reachable from anywhere but localhost. The static-file route that
+serves the dashboard resolves every requested path and refuses anything that
+lands outside `frontend/dist` (`app/spa.py`).
 
 ---
 
@@ -324,7 +358,9 @@ current values. An example is below:
 ```json
 {
   "ping_timeout_seconds": 2.0,
-  "pings_per_check": 3,
+  "burst_packet_count": 15,
+  "burst_interval_ms": 20,
+  "default_target_interval_seconds": 60,
   "latency_warning_threshold_ms": 150,
   "packet_loss_warning_threshold_pct": 5,
   "outage_threshold_checks": 3,
@@ -334,10 +370,102 @@ current values. An example is below:
     "good_latency_ms": 60, "good_packet_loss_pct": 2,
     "fair_latency_ms": 100, "fair_packet_loss_pct": 5
   },
-  "data_retention_days": 30,
+  "stability": {
+    "excellent_iqr_ms": 5,
+    "good_iqr_ms": 15, "good_loss_pct": 7,
+    "fair_iqr_ms": 30, "fair_loss_pct": 15
+  },
+  "raw_retention_days": 7,
+  "data_retention_days": 90,
   "theme": "system"
 }
 ```
+
+### Burst Probing: latency, variation and stability
+
+A single ping (or the mean of three) hides what makes a connection *feel*
+bad: the spread. Each cycle (default every **60 s** per target) therefore
+sends a **burst** of `burst_packet_count` probes (10-20, default 15) spaced
+`burst_interval_ms` (15-20 ms) apart, measures every round trip with
+`time.perf_counter_ns()`, and reduces the burst in memory - the per-packet
+RTTs are never stored - to:
+
+| Metric | Meaning |
+|---|---|
+| `median_ms` (p50) | the base latency; robust to the odd slow packet |
+| `p25_ms`, `p75_ms`, `iqr_ms` | the interquartile range: how widely the *typical* packet scatters |
+| `p95_ms` | tail latency inside the burst |
+| `min_ms`, `max_ms` | extremes |
+| `jitter_rfc3550` | RFC 3550 interarrival jitter: `J += (\|D\| - J) / 16`, `D` = RTT difference between consecutive *answered* probes |
+| `packet_loss` | % of the burst's probes that were never answered |
+
+Percentiles use linear interpolation between closest ranks. Two things worth
+knowing: the RFC's `1/16` gain means a 15-probe burst only partly converges
+from its zero start, so `jitter_rfc3550` reads lower than the plain mean of
+`|D|` (it is a smoothed per-burst indicator, as the RFC defines it); and one
+lost probe of 15 is 6.67 % loss, so a single burst's loss is coarse - read it
+over a range.
+
+The legacy `latency_ms` / `jitter_ms` columns mirror `median_ms` /
+`jitter_rfc3550`, so older readers (and CSV consumers) keep working; the CSV
+export appends the new columns after the old ones.
+
+**Stability score** (Dashboard) rates the latest burst by variation and loss,
+independent of how *low* the latency is: **Excellent** = no loss and IQR below
+`stability.excellent_iqr_ms` (5 ms); **Good** = loss up to 7 % (one lost probe)
+and IQR < 15 ms; **Fair** = loss up to 15 % and IQR < 30 ms; **Poor** = worse.
+All five boundaries are configurable.
+
+**The smoke graph** draws the selected target's median as a line over two
+bands - IQR (p25-p75) and tail (min-p95) - with packet loss as red bars, for
+5 m / 15 m / 1 h / 6 h / 24 h on the Dashboard (and up to 30 d on History).
+Long ranges are thinned into time buckets in the browser, keeping each
+bucket's *worst* tail so a spike is never averaged away.
+
+> **Outage *records* now take minutes, not seconds.** The Online/Offline
+> indicator and the "connection lost" notification follow the latest burst
+> (so they react within one cycle), but an outage is only *recorded* - added to
+> the outage log, traceroute captured, long-outage alert armed - after
+> `outage_threshold_checks` (default 3) consecutive failed **checks**. A check
+> is now one per minute, so that is roughly 3 minutes (it was ~15 s at the old
+> 5 s cadence). Lower it to 1-2, or shorten a target's interval, if you want
+> faster detection - at the cost of more rows (below).
+
+### Storage: two tiers, bounded size
+
+| Tier | Holds | Kept |
+|---|---|---|
+| `measurements` | one row per burst (full summary above) | `raw_retention_days` (default **7**) |
+| `ping_metrics_hourly` | one row per target per UTC hour: `avg_median_ms`, `avg_iqr_ms`, `max_p95_ms`, `avg_loss_pct`, `sample_count` (+ `min_ms`, `max_ms`, `avg_jitter_ms`) | `data_retention_days` (default **90**) |
+
+An hourly background task folds raw rows older than the cutoff into the
+hourly tier (in one transaction with the delete, so nothing is lost or counted
+twice; the cutoff is floored to the hour so an hour is never split), drops
+hourly rows past retention, compacts the file if a large rollup left a lot of
+free space, and truncates the WAL. The History page, statistics and CSV export
+read across both tiers; hourly rows come back flagged `error = "Downsampled"`.
+Statistics over ranges that reach into the hourly tier are weighted by
+`sample_count`, and their median/p95 are approximations built from hourly
+aggregates (the raw RTTs are gone).
+
+The connection is opened with `journal_mode=WAL`, `synchronous=NORMAL` and
+`temp_store=MEMORY`.
+
+**Measured size** (90 simulated days, the real daily rollup cycle, 5 targets at
+the default 60 s): **13.8 MB** in total - about 2.2 MB per target for the 7 raw
+days (~215 B/row incl. indexes) plus ~0.3 MB for 83 hourly days (~140 B/row).
+That puts the default configuration under 50 MB up to **about 20 targets**.
+The size scales linearly with `targets / interval`: a 30 s interval halves that
+capacity, a 5 s interval is 12x the rows. An install upgraded from the old
+5-second checks still holds up to 7 days of those rows until they age out
+(the old default kept them just as long); the first big rollup is followed by
+a one-time `VACUUM`, which briefly needs spare disk space.
+
+**Upgrading**: new columns and the hourly table are added automatically. Once,
+on first start, targets still on the old 5 s default interval move to 60 s, a
+stored `default_target_interval_seconds` of 5 becomes 60, and a stored
+`data_retention_days` of 30 (the old default) becomes 90; values you set
+yourself are left alone, and the old `pings_per_check` setting is dropped.
 
 **SLA error budget.** Set `sla_target_pct` (e.g. `99.9`, the uptime in your
 ISP contract) and the Dashboard (rolling 30 days) and History (selected
@@ -398,8 +526,8 @@ or performs pings itself.
 
 ## Testing
 
-**Backend** (~120 tests, no real network access required — every subprocess
-and socket call is mocked or points at an ephemeral local server):
+**Backend** (~280 tests plus 10 for the CLI; nothing needs real Internet access — probes run
+against fake sockets, loopback or an ephemeral local server):
 
 ```bash
 cd backend
@@ -407,9 +535,10 @@ cd backend
 .venv/bin/python -m pytest -q --cov=app --cov-report=term-missing
 ```
 
-**Frontend** (~27 tests: formatting helpers, the API client's error
-handling, component rendering/empty-states, and a mocked-API Dashboard
-integration test):
+**Frontend** (~110 tests: formatting helpers, the API client's error
+handling, smoke-graph data/bucketing, component rendering/empty-states, and a
+mocked-API Dashboard integration test; jsdom cannot draw Recharts' SVG, so the
+plotted shapes are checked in a real browser, not here):
 
 ```bash
 cd frontend
@@ -429,9 +558,9 @@ outage detection) — see the CLI section above for the exact commands.
   comments in the unit file for the capability/hardening reasoning
   (short version: `NoNewPrivileges=true` + `ProtectSystem=strict` +
   everything else locked down, with exactly one capability —
-  `CAP_NET_RAW` — granted via `AmbientCapabilities` so ICMP still works
-  without the service running as root or relying on `ping` being
-  setuid on the host distro).
+  `CAP_NET_RAW` — granted via `AmbientCapabilities` so the monitor can open
+  its ICMP socket (and the `ping` fallback still works) without the service
+  running as root or relying on `ping` being setuid on the host distro).
 
 ---
 
@@ -488,14 +617,13 @@ The brief asked for reasonable engineering decisions to be made and
 documented where it left things unspecified. Here's what was decided and
 why:
 
-- **A check is a small batch, not a single ping.** Each "check" sends
-  `pings_per_check` (default 3) ICMP echoes or TCP connection attempts in
-  one go, and the stored `latency_ms`/`jitter_ms`/`packet_loss` for that
-  measurement row are the average, mean-absolute-successive-difference, and
-  loss % *within that batch*. This is what makes a meaningful per-check
-  jitter and loss percentage possible at all — a single ping can't have
-  "jitter." Aggregate statistics (min/max/median/p95 over a time range) are
-  then computed across many such rows.
+- **A check is a burst, summarised in memory.** Each "check" sends 10-20
+  paced probes (see [Burst Probing](#burst-probing-latency-variation-and-stability)),
+  and one `measurements` row stores the burst's median / quartiles / p95 /
+  min / max / RFC 3550 jitter / loss. Aggregate statistics over a time range
+  are then computed across many such rows (and, past `raw_retention_days`,
+  the hourly tier). `latency_ms` is the *median*, not the mean, since the
+  rewrite.
 - **The gateway is excluded from outage detection.** An outage is recorded
   when every enabled *non-gateway* target fails for `outage_threshold_checks`
   checks in a row. A dead gateway means your LAN is down, which is real but
@@ -506,9 +634,10 @@ why:
 - **Headline latency/loss/jitter on the status view are averaged across
   non-gateway targets.** The gateway is typically a ~1ms local hop and
   isn't representative of "Internet" quality.
-- **ICMP-unavailable fallback is logged once, not stamped onto every
-  measurement.** If the `ping` binary is missing or blocked, the app
-  permanently switches that process's checks to TCP and logs it a single
+- **Native-ICMP fallbacks are logged once, not stamped onto every
+  measurement.** If native ICMP can't work (no permission, a container
+  without raw sockets, an unexpected error) the process drops to the `ping`
+  command and then to TCP for the rest of its life and logs it a single
   time — it doesn't decorate every subsequent successful measurement's
   `error` field with a "used TCP instead" note forever.
 - **The systemd unit needs `CAP_NET_RAW` for ICMP under `NoNewPrivileges`.**

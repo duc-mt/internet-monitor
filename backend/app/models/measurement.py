@@ -17,7 +17,25 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 
-class MeasurementOut(BaseModel):
+class BurstFields(BaseModel):
+    """
+    Burst Probing summary of one check, in milliseconds (loss is the existing
+    ``packet_loss`` percentage). Every field is None on rows recorded before
+    the upgrade, or when every probe in the burst was lost.
+    """
+
+    median_ms: float | None = None
+    p25_ms: float | None = None
+    p75_ms: float | None = None
+    p95_ms: float | None = None
+    min_ms: float | None = None
+    max_ms: float | None = None
+    iqr_ms: float | None = None
+    jitter_rfc3550: float | None = None
+    packet_count: int | None = None
+
+
+class MeasurementOut(BurstFields):
     id: int
     target_id: int
     target_name: str | None = None
@@ -32,7 +50,7 @@ class MeasurementOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class MeasurementCreate(BaseModel):
+class MeasurementCreate(BurstFields):
     target_id: int
     timestamp: str
     latency_ms: float | None

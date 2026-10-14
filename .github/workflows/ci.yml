@@ -32,7 +32,7 @@ jobs:
         run: ruff format --check .
 
       - name: Run Mypy Type Check
-        run: mypy backend/app cli/internet_monitor_cli --ignore-missing-imports
+        run: mypy backend/app cli/internet_monitor_cli
 
   backend:
     name: Python Tests (${{ matrix.python-version }})

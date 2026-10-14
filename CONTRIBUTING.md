@@ -30,7 +30,7 @@ We follow the **GitHub Flow** for development. Please avoid committing directly 
 
 ## Pre-commit Hooks
 
-We use `pre-commit` to ensure code quality before pushing. 
+We use `pre-commit` to ensure code quality before pushing.
 
 To set it up locally:
 1. Install pre-commit: `pip install pre-commit`

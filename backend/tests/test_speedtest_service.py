@@ -15,84 +15,71 @@ Notes:         Requires Python 3.8+
 from __future__ import annotations
 
 import asyncio
-import time
+import types
 
+import httpx
 import pytest
 from app.services import speedtest_service
 
 
-class _FakeResponse:
-    def __init__(self, chunks: list[bytes]):
-        self._chunks = chunks
-
-    def raise_for_status(self) -> None:
-        pass
-
-    def iter_content(self, chunk_size: int):
-        yield from self._chunks
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        return False
+def _transport(handler) -> httpx.MockTransport:
+    return httpx.MockTransport(handler)
 
 
-def test_blocking_download_computes_mbps(monkeypatch):
-    chunks = [b"x" * 1_000_000 for _ in range(5)]  # 5,000,000 bytes total
+async def test_download_computes_mbps_and_streams_the_payload(monkeypatch):
+    seen: dict = {}
 
-    def fake_get(url, params, stream, timeout):
-        assert url == speedtest_service._TEST_URL
-        assert params == {"bytes": 5_000_000}
-        return _FakeResponse(chunks)
-
-    monkeypatch.setattr(speedtest_service.requests, "get", fake_get)
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url.copy_with(query=None))
+        seen["bytes"] = request.url.params["bytes"]
+        return httpx.Response(200, content=b"x" * 5_000_000)
 
     # Deterministic 1.0-second "elapsed" so the Mbps math is exact:
     # 5,000,000 bytes * 8 bits / 1,000,000 / 1.0s = 40.0 Mbps.
+    # (Patch the module's own `time` reference - patching time.monotonic itself
+    # would also hijack the asyncio event loop's clock.)
     clock = iter([0.0, 1.0])
-    monkeypatch.setattr(speedtest_service.time, "monotonic", lambda: next(clock))
+    monkeypatch.setattr(speedtest_service, "time", types.SimpleNamespace(monotonic=lambda: next(clock)))
 
-    result = speedtest_service._blocking_download(5_000_000, timeout=15.0)
+    result = await speedtest_service._download(5_000_000, timeout=15.0, transport=_transport(handler))
+
+    assert seen == {"url": speedtest_service._TEST_URL, "bytes": "5000000"}
     assert result.bytes_downloaded == 5_000_000
     assert result.download_mbps == 40.0
     assert result.elapsed_seconds == 1.0
     assert result.server == "speed.cloudflare.com"
 
 
-def test_blocking_download_propagates_http_errors(monkeypatch):
-    class _FailingResponse(_FakeResponse):
-        def raise_for_status(self):
-            raise speedtest_service.requests.HTTPError("503 Server Error")
+async def test_download_propagates_http_errors():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503)
 
-    def fake_get(url, params, stream, timeout):
-        return _FailingResponse([])
-
-    monkeypatch.setattr(speedtest_service.requests, "get", fake_get)
-    with pytest.raises(speedtest_service.requests.HTTPError):
-        speedtest_service._blocking_download(1000, timeout=15.0)
+    with pytest.raises(httpx.HTTPStatusError):
+        await speedtest_service._download(1000, timeout=15.0, transport=_transport(handler))
 
 
-@pytest.mark.asyncio
+async def test_download_propagates_timeouts():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("slow server", request=request)
+
+    with pytest.raises(httpx.ReadTimeout):
+        await speedtest_service._download(1000, timeout=0.1, transport=_transport(handler))
+
+
 async def test_run_speedtest_does_not_block_the_event_loop(monkeypatch):
     """
-    The whole point of using asyncio.to_thread is that a slow (blocking)
-    download must not stall other coroutines - like the ping scheduler -
-    running on the same event loop. This proves it concretely: a ticker
-    task keeps incrementing a counter via asyncio.sleep() *while* a
-    genuinely blocking time.sleep() stands in for the download.
+    A slow download must not stall other coroutines - like the ping
+    scheduler - on the same event loop. A ticker task keeps incrementing a
+    counter while the (async-sleeping) "download" is in flight.
     """
 
-    def fake_blocking_download(size_bytes, timeout):
-        time.sleep(0.3)  # real, OS-level blocking sleep - not asyncio.sleep
+    async def fake_download(size_bytes, timeout, *, transport=None):
+        await asyncio.sleep(0.3)
         return speedtest_service.SpeedtestResult(
-            download_mbps=42.0,
-            bytes_downloaded=size_bytes,
-            elapsed_seconds=0.3,
-            server="test",
+            download_mbps=42.0, bytes_downloaded=size_bytes, elapsed_seconds=0.3, server="test"
         )
 
-    monkeypatch.setattr(speedtest_service, "_blocking_download", fake_blocking_download)
+    monkeypatch.setattr(speedtest_service, "_download", fake_download)
 
     tick_count = 0
 
@@ -107,6 +94,12 @@ async def test_run_speedtest_does_not_block_the_event_loop(monkeypatch):
     ticker_task.cancel()
 
     assert result.download_mbps == 42.0
-    # If run_speedtest had blocked the loop, the ticker could not have run
-    # at all during the ~0.3s "download" - it would be 0 or 1.
     assert tick_count >= 5
+
+
+def test_requests_is_no_longer_a_dependency():
+    import pathlib
+
+    reqs = (pathlib.Path(__file__).resolve().parents[1] / "requirements.txt").read_text().lower()
+    assert "requests" not in reqs
+    assert not hasattr(speedtest_service, "requests")

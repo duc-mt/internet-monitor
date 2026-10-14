@@ -110,6 +110,12 @@ def status(client: ApiClient, as_json: bool):
     click.echo(f"Latency:     {_fmt_ms(data['latency_ms'])}")
     click.echo(f"Packet loss: {_fmt_pct(data['packet_loss'])}")
     click.echo(f"Jitter:      {_fmt_ms(data['jitter_ms'])}")
+    if data.get("median_ms") is not None:  # latest Burst Probing figures (absent on an older server)
+        click.echo(
+            f"Burst:       median {_fmt_ms(data['median_ms'])}  IQR {_fmt_ms(data.get('iqr_ms'))}  "
+            f"p95 {_fmt_ms(data.get('p95_ms'))}  jitter (RFC 3550) {_fmt_ms(data.get('jitter_rfc3550_ms'))}"
+        )
+        click.echo(f"Stability:   {str(data.get('stability', 'unknown')).upper()}")
     click.echo(f"Targets reachable: {data['targets_reachable']}/{data['targets_total']}")
     click.echo(
         f"Monitoring: {'running' if data['monitoring_running'] else 'stopped'} "
@@ -121,6 +127,11 @@ def status(client: ApiClient, as_json: bool):
 
 def _fmt_ms(v: float | None) -> str:
     return "—" if v is None else f"{v:.1f} ms"
+
+
+def _num(v: float | None) -> str:
+    """A bare number for table cells; an em dash when there is none."""
+    return "—" if v is None else f"{v:.2f}"
 
 
 def _fmt_pct(v: float | None) -> str:
@@ -182,7 +193,7 @@ def targets_list(client: ApiClient):
 @click.option(
     "--port", type=int, default=None, help="TCP port (required for --protocol tcp unless you want the default of 443)."
 )
-@click.option("--interval", type=int, default=5, show_default=True, help="Seconds between checks.")
+@click.option("--interval", type=int, default=60, show_default=True, help="Seconds between probe bursts.")
 @click.option("--gateway", is_flag=True, help="Mark as the local gateway (excluded from outage detection).")
 @click.option("--disabled", is_flag=True, help="Create the target disabled.")
 @click.pass_obj
@@ -253,12 +264,13 @@ def history(client: ApiClient, target_id, range_name, limit):
     stats = client.get("/statistics", params={"range": range_name, **({"target_id": target_id} if target_id else {})})
     click.echo(f"Statistics ({range_name}):")
     click.echo(
-        f"  avg={_fmt_ms(stats['avg_latency_ms'])}  min={_fmt_ms(stats['min_latency_ms'])}  "
-        f"max={_fmt_ms(stats['max_latency_ms'])}  p95={_fmt_ms(stats['p95_latency_ms'])}"
+        f"  median={_fmt_ms(stats.get('median_latency_ms'))}  IQR={_fmt_ms(stats.get('avg_iqr_ms'))}  "
+        f"p95={_fmt_ms(stats['p95_latency_ms'])}  jitter (RFC 3550)={_fmt_ms(stats['avg_jitter_ms'])}  "
+        f"loss={_fmt_pct(stats['packet_loss_pct'])}"
     )
     click.echo(
-        f"  packet loss={_fmt_pct(stats['packet_loss_pct'])}  jitter={_fmt_ms(stats['avg_jitter_ms'])}  "
-        f"outages={stats['outage_count']}  samples={stats['sample_count']}"
+        f"  avg={_fmt_ms(stats['avg_latency_ms'])}  min={_fmt_ms(stats['min_latency_ms'])}  "
+        f"max={_fmt_ms(stats['max_latency_ms'])}  outages={stats['outage_count']}  samples={stats['sample_count']}"
     )
     click.echo()
 
@@ -271,7 +283,13 @@ def history(client: ApiClient, target_id, range_name, limit):
             {
                 "time": m["timestamp"],
                 "target": m.get("target_name", m["target_id"]),
-                "latency_ms": m["latency_ms"],
+                # median_ms is None for checks recorded before Burst Probing: fall back to the old latency.
+                "median_ms": _num(m.get("median_ms") if m.get("median_ms") is not None else m["latency_ms"]),
+                "iqr_ms": _num(m.get("iqr_ms")),
+                "p95_ms": _num(m.get("p95_ms")),
+                "jitter_ms": _num(
+                    m.get("jitter_rfc3550") if m.get("jitter_rfc3550") is not None else m.get("jitter_ms")
+                ),
                 "loss%": m["packet_loss"],
                 "success": m["success"],
             }
@@ -333,7 +351,7 @@ def config_get(client: ApiClient, key: str | None):
         click.echo(jsonlib.dumps(data, indent=2))
         return
     value = _dotted_get(data, key)
-    click.echo(jsonlib.dumps(value) if isinstance(value, (dict, list)) else value)
+    click.echo(jsonlib.dumps(value) if isinstance(value, dict | list) else value)
 
 
 @config.command("set")

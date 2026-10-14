@@ -92,20 +92,30 @@ export function Settings() {
         </div>
       )}
 
-      <Section title="Monitoring · Cơ chế giám sát" description="How often and how aggressively targets are checked · Tần suất và số gói tin ping khi kiểm tra mục tiêu.">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Field label="Ping timeout (Thời gian chờ - giây)">
+      <Section
+        title="Monitoring · Cơ chế giám sát"
+        description="Each cycle sends a short burst of probes and keeps its median, IQR, p95, RFC 3550 jitter and loss · Mỗi chu kỳ gửi một loạt gói ping ngắn và lưu median, IQR, p95, jitter RFC 3550 và mất gói."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Field label="Probe timeout (Thời gian chờ - giây)">
             <input
               type="number" step="0.1" min={0.2} max={30} className={inputClass}
               value={form.ping_timeout_seconds}
               onChange={(e) => setForm({ ...form, ping_timeout_seconds: Number(e.target.value) })}
             />
           </Field>
-          <Field label="Pings per check (Số gói ping mỗi lần)">
+          <Field label="Probes per burst (Số gói mỗi chu kỳ: 10-20)">
             <input
-              type="number" min={1} max={10} className={inputClass}
-              value={form.pings_per_check}
-              onChange={(e) => setForm({ ...form, pings_per_check: Number(e.target.value) })}
+              type="number" min={10} max={20} className={inputClass}
+              value={form.burst_packet_count}
+              onChange={(e) => setForm({ ...form, burst_packet_count: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Gap between probes (Khoảng cách giữa các gói: 15-20 ms)">
+            <input
+              type="number" min={15} max={20} className={inputClass}
+              value={form.burst_interval_ms}
+              onChange={(e) => setForm({ ...form, burst_interval_ms: Number(e.target.value) })}
             />
           </Field>
           <Field label="Default interval for new targets (Chu kỳ mặc định cho mục tiêu mới - giây)">
@@ -203,6 +213,37 @@ export function Settings() {
       </Section>
 
       <Section
+        title="Stability score · Điểm ổn định"
+        description="Judges how steady the link is from a burst's IQR and packet loss, regardless of how low the latency is · Đánh giá độ ổn định dựa trên IQR và mất gói, không phụ thuộc vào độ trễ thấp hay cao."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Field label="Excellent: IQR below, loss 0% (IQR dưới - ms)">
+            <input type="number" min={0} className={inputClass} value={form.stability.excellent_iqr_ms}
+              onChange={(e) => setForm({ ...form, stability: { ...form.stability, excellent_iqr_ms: Number(e.target.value) } })} />
+          </Field>
+          <Field label="Good: IQR below (IQR dưới - ms)">
+            <input type="number" min={0} className={inputClass} value={form.stability.good_iqr_ms}
+              onChange={(e) => setForm({ ...form, stability: { ...form.stability, good_iqr_ms: Number(e.target.value) } })} />
+          </Field>
+          <Field label="Good: loss up to (Mất gói tối đa - %)">
+            <input type="number" min={0} max={100} className={inputClass} value={form.stability.good_loss_pct}
+              onChange={(e) => setForm({ ...form, stability: { ...form.stability, good_loss_pct: Number(e.target.value) } })} />
+          </Field>
+          <Field label="Fair: IQR below (IQR dưới - ms)">
+            <input type="number" min={0} className={inputClass} value={form.stability.fair_iqr_ms}
+              onChange={(e) => setForm({ ...form, stability: { ...form.stability, fair_iqr_ms: Number(e.target.value) } })} />
+          </Field>
+          <Field label="Fair: loss up to (Mất gói tối đa - %)">
+            <input type="number" min={0} max={100} className={inputClass} value={form.stability.fair_loss_pct}
+              onChange={(e) => setForm({ ...form, stability: { ...form.stability, fair_loss_pct: Number(e.target.value) } })} />
+          </Field>
+        </div>
+        <p className="text-xs text-muted mt-2">
+          Anything worse is Poor. With the default 15-probe burst, one lost probe is 6.67% · Với burst 15 gói, mất một gói tương đương 6,67%.
+        </p>
+      </Section>
+
+      <Section
         title="Notifications · Thông báo"
         description="Desktop notifications, plus an optional webhook for servers with no desktop · Thông báo trên màn hình máy tính, và webhook tùy chọn cho máy chủ không có giao diện."
       >
@@ -255,8 +296,15 @@ export function Settings() {
       </Section>
 
       <Section title="Data & appearance · Dữ liệu & Giao diện">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Field label="Data retention (Thời gian lưu trữ dữ liệu - ngày)">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Field label="Per-burst detail kept for (Giữ dữ liệu chi tiết - ngày)">
+            <input
+              type="number" min={1} max={90} className={inputClass}
+              value={form.raw_retention_days}
+              onChange={(e) => setForm({ ...form, raw_retention_days: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Hourly summaries kept for (Giữ dữ liệu tổng hợp theo giờ - ngày)">
             <input
               type="number" min={1} max={3650} className={inputClass}
               value={form.data_retention_days}

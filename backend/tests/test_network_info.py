@@ -407,3 +407,52 @@ async def test_get_wan_ip_rejects_html_or_invalid_string(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     ip = await network_info.get_wan_ip()
     assert ip is None
+
+
+async def test_run_kills_and_reaps_a_child_that_outlives_its_timeout(monkeypatch):
+    """A timed-out lookup must not leave the subprocess running (regression: it used to be orphaned)."""
+    import asyncio
+    import sys
+
+    spawned = []
+    real_create = asyncio.create_subprocess_exec
+
+    async def spy(*args, **kwargs):
+        proc = await real_create(*args, **kwargs)
+        spawned.append(proc)
+        return proc
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", spy)
+    out = await network_info._run(sys.executable, "-c", "import time; time.sleep(30)", timeout=0.3)
+
+    assert out == ""
+    assert len(spawned) == 1
+    assert spawned[0].returncode is not None  # reaped: killed and waited for
+
+
+async def test_run_reaps_the_child_when_the_task_is_cancelled(monkeypatch):
+    import asyncio
+    import sys
+
+    spawned = []
+    real_create = asyncio.create_subprocess_exec
+
+    async def spy(*args, **kwargs):
+        proc = await real_create(*args, **kwargs)
+        spawned.append(proc)
+        return proc
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", spy)
+    task = asyncio.create_task(network_info._run(sys.executable, "-c", "import time; time.sleep(30)", timeout=30))
+    await asyncio.sleep(0.4)  # child is running
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert spawned[0].returncode is not None
+
+
+async def test_run_returns_output_for_a_normal_command():
+    import sys
+
+    assert (await network_info._run(sys.executable, "-c", "print('hello')")).strip() == "hello"
+    assert await network_info._run("definitely-not-a-real-binary-xyz") == ""

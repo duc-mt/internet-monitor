@@ -28,9 +28,10 @@ export function TargetStatusTable({
           <tr className="text-left text-[11px] font-semibold tracking-wider text-slate-400 uppercase border-b border-border bg-slate-50/50 dark:bg-slate-900/50">
             <th className="py-2.5 px-3 rounded-tl-md">Target</th>
             <th className="py-2.5 pr-3">Host</th>
-            <th className="py-2.5 pr-3">Latency</th>
+            <th className="py-2.5 pr-3 whitespace-nowrap">Median</th>
+            <th className="py-2.5 pr-3">IQR</th>
             <th className="py-2.5 pr-3">Loss</th>
-            <th className={`py-2.5 pr-3 ${onTrace ? "" : "rounded-tr-md"}`}>Last check</th>
+            <th className={`py-2.5 pr-3 whitespace-nowrap ${onTrace ? "" : "rounded-tr-md"}`}>Last check</th>
             {onTrace && (
               <th className="py-2.5 pr-3 rounded-tr-md">
                 <span className="sr-only">Actions</span>
@@ -48,9 +49,10 @@ export function TargetStatusTable({
                 </div>
               </td>
               <td className="py-2.5 pr-3 font-mono text-xs text-muted">{t.host}</td>
-              <td className="py-2.5 pr-3 font-mono font-tabular">{formatLatency(t.latency_ms)}</td>
-              <td className="py-2.5 pr-3 font-mono font-tabular">{formatPct(t.packet_loss)}</td>
-              <td className="py-2.5 pr-3 text-xs text-muted font-mono">{formatClock(t.last_checked)}</td>
+              <td className="whitespace-nowrap py-2.5 pr-3 font-mono font-tabular">{formatLatency(t.median_ms ?? t.latency_ms)}</td>
+              <td className="whitespace-nowrap py-2.5 pr-3 font-mono font-tabular">{formatLatency(t.iqr_ms ?? null)}</td>
+              <td className="whitespace-nowrap py-2.5 pr-3 font-mono font-tabular">{formatPct(t.packet_loss)}</td>
+              <td className="whitespace-nowrap py-2.5 pr-3 text-xs text-muted font-mono">{formatClock(t.last_checked)}</td>
               {onTrace && (
                 <td className="py-2.5 pr-3 text-right">
                   <button
