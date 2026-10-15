@@ -180,6 +180,11 @@ export function History() {
           rangeOptions={HISTORY_CHART_RANGES}
         />
       )}
+      {!targetId && chartMinutes >= 10080 && (
+        <p className="text-xs text-muted -mt-2">
+          Tip: Select a specific target above for detailed SmokeGraph percentiles and full data depth across multi-day views.
+        </p>
+      )}
 
       <div className="rounded-card border border-border bg-panel p-5 shadow-sm transition-all-fast">
         <h3 className="text-sm font-semibold tracking-tight text-text mb-3">Outage history · Lịch sử gián đoạn kết nối</h3>

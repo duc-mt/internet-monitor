@@ -159,6 +159,9 @@ export function Settings() {
             />
           </Field>
         </div>
+        <p className="text-xs text-muted mt-3">
+          Với chu kỳ Burst Probing mặc định (60s), 3 lần kiểm tra lỗi liên tiếp tương đương ~3 phút trước khi sự cố được ghi nhận và kích hoạt cảnh báo/traceroute (trạng thái Online/Offline vẫn phản ứng ngay trong 1 chu kỳ). Hạ xuống 1–2 nếu cần phát hiện nhanh hơn.
+        </p>
       </Section>
 
       <Section

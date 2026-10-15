@@ -208,14 +208,13 @@ Everything above is covered by mocked unit tests (exact command
 arguments, realistic sample output parsing, escaping) and has been
 successfully verified on real Windows environments.
 
-> **Not yet verified on real Windows / macOS:** the *native* Burst Probing
-> ICMP path (`IcmpSendEcho2` through `ctypes` on Windows; the datagram ICMP
-> socket's reply framing on macOS). It was developed and tested on Linux
-> against real sockets, plus - for Windows - a stand-in `iphlpapi` that
-> exercises the struct layout and control flow, which cannot prove real
-> Windows behaviour. Any unexpected failure in it falls back to the `ping`
-> engine automatically; if you see wrong numbers on those platforms, set
-> `INTERNET_MONITOR_ICMP_ENGINE=ping` and please report it.
+> **Native ICMP status on Windows & macOS:** On macOS, native Burst Probing via
+> unprivileged datagram ICMP sockets (`socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP)`)
+> has been tested and verified on real hardware without needing root. On Windows,
+> the `IcmpSendEcho2` ctypes binding was exercised against a stand-in `iphlpapi`
+> library and falls back to the system `ping` command automatically if needed.
+> You can also explicitly set `INTERNET_MONITOR_ICMP_ENGINE=ping` to force
+> the subprocess engine.
 
 ---
 
