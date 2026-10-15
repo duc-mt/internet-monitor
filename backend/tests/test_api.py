@@ -395,3 +395,10 @@ def test_measurements_endpoint_supports_decimate_to(client):
     resp = client.get("/api/measurements", params={"decimate_to": 10})
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
+
+
+def test_gzip_compression(client):
+    # Requesting with Accept-Encoding: gzip returns 200 and uncompressed data to test client
+    resp = client.get("/api/settings", headers={"Accept-Encoding": "gzip"})
+    assert resp.status_code == 200
+    assert "data_retention_days" in resp.json()
