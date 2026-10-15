@@ -61,7 +61,7 @@ export const api = {
   // Manual only (can take up to ~a minute) - never called on a timer.
   runTraceroute: (id: number) => request<TracerouteResult>(`/targets/${id}/traceroute`, { method: "POST" }),
 
-  listMeasurements: (params: { target_id?: number; start?: string; end?: string; limit?: number } = {}) =>
+  listMeasurements: (params: { target_id?: number; start?: string; end?: string; limit?: number; decimate_to?: number } = {}) =>
     request<Measurement[]>(`/measurements${toQuery(params)}`),
 
   getStatistics: (params: { range: RangeName; start?: string; end?: string; target_id?: number }) =>

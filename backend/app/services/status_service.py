@@ -14,6 +14,7 @@ Notes:         Requires Python 3.8+
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
 
 import aiosqlite
@@ -24,10 +25,26 @@ from app.monitoring import network_info
 from app.services import quality_service, statistics_service
 from app.services.settings_service import get_settings
 
+_STATUS_CACHE_TTL = 1.0  # seconds
+_last_status: StatusResponse | None = None
+_last_status_at: float = 0.0
+
+
+def reset_status_cache() -> None:
+    """Used by tests."""
+    global _last_status, _last_status_at
+    _last_status = None
+    _last_status_at = 0.0
+
 
 async def compute_status(
     conn: aiosqlite.Connection, *, monitoring_started_at: datetime | None, monitoring_running: bool
 ) -> StatusResponse:
+    global _last_status, _last_status_at
+    now_mono = time.monotonic()
+    if _last_status is not None and (now_mono - _last_status_at) < _STATUS_CACHE_TTL:
+        return _last_status
+
     settings = await get_settings(conn)
     targets = await targets_repo.list_targets(conn, enabled_only=True)
     latest_by_target = {m.target_id: m for m in await measurements_repo.latest_measurements_all(conn)}
@@ -120,7 +137,7 @@ async def compute_status(
     # (every few seconds), so it must not load and sort a day of samples.
     uptime_pct_24h = await statistics_service.compute_uptime_pct(conn, window=timedelta(hours=24))
 
-    return StatusResponse(
+    result = StatusResponse(
         online=online,
         quality=quality,
         latency_ms=avg_latency,
@@ -140,3 +157,6 @@ async def compute_status(
         active_outage=active_outage is not None,
         monitoring_running=monitoring_running,
     )
+    _last_status = result
+    _last_status_at = now_mono
+    return result

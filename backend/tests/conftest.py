@@ -32,6 +32,7 @@ from app.services import (
     outage_service,
     settings_service,
     sleep_service,
+    status_service,
 )
 
 
@@ -52,6 +53,7 @@ async def db(tmp_path: Path):
     notification_service.reset_cooldowns()
     sleep_service.reset_state()
     network_info.reset_cache()
+    status_service.reset_status_cache()
     yield conn
     await db_connection.close_db()
 

@@ -168,6 +168,15 @@ def _hourly_filters(target_id: int | None, start: str | None, end: str | None) -
     return clause, params
 
 
+def decimate_measurements(rows: list[MeasurementOut], target_count: int) -> list[MeasurementOut]:
+    """Uniformly downsample rows to at most target_count items, preserving endpoints."""
+    if len(rows) <= target_count or target_count < 2:
+        return rows
+    step = (len(rows) - 1) / (target_count - 1)
+    indices = {int(round(i * step)) for i in range(target_count)}
+    return [rows[i] for i in sorted(indices)]
+
+
 async def list_measurements(
     conn: aiosqlite.Connection,
     *,
@@ -175,6 +184,7 @@ async def list_measurements(
     start: str | None = None,
     end: str | None = None,
     limit: int = 1000,
+    decimate_to: int | None = None,
 ) -> list[MeasurementOut]:
     """Newest first. Raw checks first; when they do not fill ``limit`` the
     remainder is topped up from the hourly rollup tier (older history)."""
@@ -196,6 +206,8 @@ async def list_measurements(
         async with conn.execute(h_query, [*h_params, remaining]) as cursor:
             hourly = await cursor.fetchall()
         rows.extend(_hourly_row_to_measurement(r, -(i + 1)) for i, r in enumerate(hourly))
+    if decimate_to is not None and decimate_to > 0:
+        return decimate_measurements(rows, decimate_to)
     return rows
 
 

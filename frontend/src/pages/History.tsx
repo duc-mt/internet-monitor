@@ -52,9 +52,9 @@ export function History() {
 
   const measurementsFetcher = useCallback(() => {
     const start = new Date(Date.now() - chartMinutes * 60_000).toISOString();
-    // The API caps a page at 20,000 rows: 7 days of 1-minute checks for one target is ~10,000, and
-    // older history comes back as one row per hour.
-    return api.listMeasurements({ target_id: targetId, start, limit: 20000 });
+    // For wide windows (> 24 hours), decimate to 1,000 points so downloads remain fast (<50KB) and UI renders smoothly.
+    const decimate_to = chartMinutes > 1440 ? 1000 : undefined;
+    return api.listMeasurements({ target_id: targetId, start, limit: 20000, decimate_to });
   }, [chartMinutes, targetId]);
   // New checks land once a minute and long windows are big downloads, so refresh them less eagerly.
   const { data: measurements } = usePolling(measurementsFetcher, chartMinutes > 360 ? 60000 : 15000, [chartMinutes, targetId]);

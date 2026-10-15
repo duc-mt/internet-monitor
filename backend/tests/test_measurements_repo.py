@@ -102,3 +102,28 @@ async def test_measurements_cascade_delete_with_target(db):
     await targets_repo.delete_target(db, target.id)
     remaining = await measurements_repo.list_measurements(db, target_id=target.id)
     assert remaining == []
+
+
+@pytest.mark.asyncio
+async def test_list_measurements_decimation(db):
+    target = await targets_repo.create_target(db, TargetCreate(name="DNS", host="8.8.8.8"))
+    base = datetime.now(timezone.utc)
+    for i in range(50):
+        await measurements_repo.insert_measurement(
+            db,
+            MeasurementCreate(
+                target_id=target.id,
+                timestamp=(base + timedelta(minutes=i)).isoformat(),
+                latency_ms=10.0 + i,
+                packet_loss=0.0,
+                jitter_ms=1.0,
+                success=True,
+            ),
+        )
+    full = await measurements_repo.list_measurements(db, target_id=target.id, limit=100)
+    assert len(full) == 50
+
+    decimated = await measurements_repo.list_measurements(db, target_id=target.id, limit=100, decimate_to=10)
+    assert len(decimated) == 10
+    assert decimated[0].timestamp == full[0].timestamp
+    assert decimated[-1].timestamp == full[-1].timestamp

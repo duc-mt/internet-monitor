@@ -30,6 +30,9 @@ async def list_measurements(
     start: str | None = None,
     end: str | None = None,
     limit: int = Query(default=1000, ge=1, le=20000),
+    decimate_to: int | None = Query(default=None, ge=10, le=5000, description="Downsample result to at most N points"),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    return await measurements_repo.list_measurements(db, target_id=target_id, start=start, end=end, limit=limit)
+    return await measurements_repo.list_measurements(
+        db, target_id=target_id, start=start, end=end, limit=limit, decimate_to=decimate_to
+    )

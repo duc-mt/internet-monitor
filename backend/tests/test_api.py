@@ -389,3 +389,9 @@ def test_traceroute_releases_the_in_flight_slot_after_a_failure(client, monkeypa
     monkeypatch.setattr(traceroute, "run_traceroute", fake_run)
     client.post(f"/api/targets/{target['id']}/traceroute")
     assert target["id"] not in targets_module._traces_in_flight
+
+
+def test_measurements_endpoint_supports_decimate_to(client):
+    resp = client.get("/api/measurements", params={"decimate_to": 10})
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)

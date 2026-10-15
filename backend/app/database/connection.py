@@ -41,6 +41,7 @@ _PRAGMAS = (
     "PRAGMA temp_store = MEMORY",
     "PRAGMA journal_size_limit = 8388608",
     "PRAGMA foreign_keys = ON",
+    "PRAGMA wal_autocheckpoint = 1000",
 )
 
 _connection: aiosqlite.Connection | None = None
