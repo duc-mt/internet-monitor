@@ -129,8 +129,6 @@ export function Dashboard() {
         />
       </div>
 
-      <ErrorBudgetCard stats={budgetStats} slaTargetPct={settings?.sla_target_pct ?? null} periodLabel="Last 30 days" />
-
       <SmokeGraph
         measurements={measurements ?? []}
         targets={enabledTargets}
@@ -153,6 +151,8 @@ export function Dashboard() {
           <OutageList outages={outages ?? []} compact />
         </div>
       </div>
+
+      <ErrorBudgetCard stats={budgetStats} slaTargetPct={settings?.sla_target_pct ?? null} periodLabel="Last 30 days" />
 
       {tracing && (
         <TracerouteModal
