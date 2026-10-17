@@ -7,11 +7,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "$ROOT_DIR"
 
 # 1. If virtual environment exists, use its Python directly
 if [ -x ".venv/bin/python" ]; then
-    exec .venv/bin/python run.py "$@"
+    exec .venv/bin/python "$SCRIPT_DIR/run.py" "$@"
 fi
 
 # 2. Prefer modern Python versions (3.13, 3.12, 3.11, 3.10) before default python3/python
@@ -20,7 +21,7 @@ CANDIDATES=("python3.13" "python3.12" "python3.11" "python3.10" "python3" "pytho
 for py in "${CANDIDATES[@]}"; do
     if command -v "$py" >/dev/null 2>&1; then
         if "$py" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
-            exec "$py" run.py "$@"
+            exec "$py" "$SCRIPT_DIR/run.py" "$@"
         fi
     fi
 done
@@ -29,7 +30,7 @@ done
 for py in "python3" "python"; do
     if command -v "$py" >/dev/null 2>&1; then
         if "$py" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
-            exec "$py" run.py "$@"
+            exec "$py" "$SCRIPT_DIR/run.py" "$@"
         fi
     fi
 done

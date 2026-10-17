@@ -44,7 +44,7 @@ def main():
     check_python_version()
 
     # Ensure we operate from the project root
-    root_dir = Path(__file__).parent.resolve()
+    root_dir = Path(__file__).resolve().parent.parent
     os.chdir(root_dir)
 
     is_windows = platform.system() == "Windows"

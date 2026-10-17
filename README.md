@@ -44,18 +44,14 @@ The fastest way to try it without installing anything system-wide:
 The project includes smart automatic launchers that inspect your system, auto-create `.venv` if missing, install backend & CLI dependencies, build the frontend if missing, and launch the service:
 
 ```bash
-# Linux / macOS / WSL:
-./run.sh                  # Start server and dashboard
-./run.sh status           # Run any CLI command directly
-./run.sh --help
-
-# Windows (CMD / PowerShell / Double-click):
-run.bat                   # Start server and dashboard
-run.bat status            # Run CLI command
+# Universal Launcher (Linux / macOS / Windows / WSL):
+./run                     # Start server and dashboard
+./run status              # Run any CLI command directly
+./run --help
 
 # Or directly via Python:
-python3 run.py            # Linux / macOS
-python run.py             # Windows
+python3 scripts/run.py    # Linux / macOS
+python scripts\run.py     # Windows
 ```
 
 ### Manual Setup (Linux / macOS)
