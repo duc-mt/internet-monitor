@@ -23,6 +23,7 @@ from asyncio import create_subprocess_exec
 from asyncio.subprocess import DEVNULL
 from urllib.parse import urlsplit
 
+import ssl
 import httpx
 
 logger = logging.getLogger("internet_monitor.notifications")
@@ -126,7 +127,12 @@ def build_webhook_payload(url: str, title: str, message: str, urgency: str) -> d
 async def _send_webhook(url: str, title: str, message: str, urgency: str) -> None:
     payload = build_webhook_payload(url, title, message, urgency)
     try:
-        async with httpx.AsyncClient(timeout=_WEBHOOK_TIMEOUT_SECONDS, follow_redirects=False) as client:
+        ctx = ssl.create_default_context()
+        try:
+            ctx.load_default_certs()
+        except Exception:
+            pass
+        async with httpx.AsyncClient(timeout=_WEBHOOK_TIMEOUT_SECONDS, follow_redirects=False, verify=ctx) as client:
             response = await client.post(url, json=payload)
         if response.status_code >= 400:
             logger.warning("Webhook endpoint answered HTTP %s", response.status_code)
